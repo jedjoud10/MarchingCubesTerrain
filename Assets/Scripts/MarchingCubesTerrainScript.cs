@@ -4,7 +4,7 @@ using UnityEngine;
 using UnityEditor;
 using System.Linq;
 using System.Diagnostics;
-
+//Marching cubes terrain script
 public class MarchingCubesTerrainScript : MonoBehaviour
 {
     public float threshold;
@@ -102,7 +102,14 @@ public class MarchingCubesTerrainScript : MonoBehaviour
         }
         for (int i = 0; i < 12; i++)
         {
-            vertices.Add((marchedCube.GetEdgePoint(i, interpolation) * cubeSize) );
+            if (triangles.Contains(i))
+            {
+                vertices.Add((marchedCube.GetEdgePoint(i, interpolation) * cubeSize));
+            }
+            else 
+            {
+                vertices.Add(Vector3.zero);
+            }
         }
         triangles.Reverse();
         MeshData mesh = new MeshData();
@@ -448,7 +455,7 @@ public class MarchedCube
         //float estimatedSurface = (threshold - density0) / (density1 - density0);  
         float estimatedSurface = Mathf.InverseLerp(density0, density1, threshold);
         if(smoothed) 
-            return Vector3.Lerp(corner0.pos, corner1.pos, estimatedSurface);
+            return Vector3.Slerp(corner0.pos, corner1.pos, estimatedSurface);
         else
             return Vector3.Lerp(corner0.pos, corner1.pos, 0.5f);        
     }
