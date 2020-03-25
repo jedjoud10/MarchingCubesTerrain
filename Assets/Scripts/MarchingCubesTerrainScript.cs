@@ -7,14 +7,17 @@ using System.Diagnostics;
 //Marching cubes terrain script
 public class MarchingCubesTerrainScript : MonoBehaviour
 {
-    public float threshold;
-    public float cubeSize;
-    public float scale;
+    public float threshold;//If density value is bigger than this, there is terrain at that 3D point
+    public float cubeSize;//The size of the marched cube
+    public float scale;//The scale of the whole terrain locally
     private MarchedCube marchedCube;
-    public bool onValidate;
-    public bool interpolation;
-    public Vector3Int position;
-    public Vector3Int size;
+    public bool onValidate;//Should we update the terrain if we change one of the parameters in the editor
+    public bool interpolation;//Should we use interpolation for the edges points
+    public bool removeUnusedVertices;//Removes unused vertices from the generated mesh
+    public bool mergeVertices;//Merges close vertices to a single vertex
+    public float mergeDistance;//distance to merge closest vertices
+    public Vector3Int position;//World position offset for the marched cube
+    public Vector3Int size;//Size container for the marched cube
     private MeshData meshData;
 
     public float terrainHeight;
@@ -40,7 +43,7 @@ public class MarchingCubesTerrainScript : MonoBehaviour
     }
 
     [ContextMenu("March Cube Test")]
-    public void marchCube()
+    public void MarchCube()
     {
         Stopwatch stopwatch = new Stopwatch();
         stopwatch.Start();
@@ -67,7 +70,10 @@ public class MarchingCubesTerrainScript : MonoBehaviour
                         vertices = meshData.vertices.ToArray(),
                         triangles = meshData.triangles.ToArray()
                     };
+                    if(removeUnusedVertices) newmesh = ClearBlanks(newmesh);
+                    if(mergeVertices) newmesh = WeldVertices(newmesh, mergeDistance);
                     newmesh.RecalculateNormals();
+                    newmesh.Optimize();
                     instance = new CombineInstance
                     {
                         mesh = newmesh,
@@ -84,11 +90,152 @@ public class MarchingCubesTerrainScript : MonoBehaviour
     }
     private void OnValidate()
     {
-        if (onValidate) marchCube();
+        if (onValidate) MarchCube();
+    }
+    //Remove unused vertices https://forum.unity.com/threads/remove-vertices-that-are-not-in-triangle-solved.342335/
+    Mesh ClearBlanks(Mesh mesh)
+    {
+        int[] triangles = mesh.triangles;
+        Vector3[] vertices = mesh.vertices;
+        List<Vector3> vertList = vertices.ToList();
+        List<int> trianglesList = triangles.ToList();
+
+        int testVertex = 0;
+
+        while (testVertex < vertList.Count)
+        {
+            if (trianglesList.Contains(testVertex))
+            {
+                //Debug.Log(testVertex);
+                testVertex++;
+            }
+            else
+            {
+                vertList.RemoveAt(testVertex);
+
+                for (int i = 0; i < trianglesList.Count; i++)
+                {
+                    if (trianglesList[i] > testVertex)
+                        trianglesList[i]--;
+                }
+            }
+        }
+
+        triangles = trianglesList.ToArray();
+        vertices = vertList.ToArray();
+
+        mesh.triangles = triangles;
+        mesh.vertices = vertices;
+        return mesh;
+    }
+    //Merges vertices that are close to each other https://answers.unity.com/questions/228841/dynamically-combine-verticies-that-share-the-same.html
+    private Mesh AutoWeld(Mesh mesh, float threshold)
+    {
+        Vector3[] verts = mesh.vertices;
+
+        // Build new vertex buffer and remove "duplicate" verticies
+        // that are within the given threshold.
+        List<Vector3> newVerts = new List<Vector3>();
+
+        int k = 0;
+
+        foreach (Vector3 vert in verts)
+        {
+            // Has vertex already been added to newVerts list?
+            foreach (Vector3 newVert in newVerts)
+                if (Vector3.Distance(newVert, vert) <= threshold)
+                    goto skipToNext;
+
+            // Accept new vertex!
+            newVerts.Add(vert);
+
+            skipToNext:;
+            ++k;
+        }
+
+        // Rebuild triangles using new verticies
+        int[] tris = mesh.triangles;
+        for (int i = 0; i < tris.Length; ++i)
+        {
+            // Find new vertex point from buffer
+            for (int j = 0; j < newVerts.Count; ++j)
+            {
+                if (Vector3.Distance(newVerts[j], verts[tris[i]]) <= threshold)
+                {
+                    tris[i] = j;
+                    break;
+                }
+            }
+        }
+
+        // Update mesh!
+        mesh.Clear();
+        mesh.vertices = newVerts.ToArray();
+        mesh.triangles = tris;
+        mesh.RecalculateBounds();
+        return mesh;
+    }
+    //Merges vertices that are close to each other https://answers.unity.com/questions/1382854/welding-vertices-at-runtime.html and from https://answers.unity.com/questions/228841/dynamically-combine-verticies-that-share-the-same.html
+    public static Mesh WeldVertices(Mesh aMesh, float aMaxDelta = 0.01f)
+    {
+        var verts = aMesh.vertices;
+        Dictionary<Vector3, int> duplicateHashTable = new Dictionary<Vector3, int>();
+        List<int> newVerts = new List<int>();
+        int[] map = new int[verts.Length];
+
+
+        //https://answers.unity.com/questions/228841/dynamically-combine-verticies-that-share-the-same.html
+        for (int i = 0; i < verts.Length; i++)
+        {
+            Vector3 curVert = verts[i]; // get vertex [i]
+                                           // compare it to the next vertices:
+            for (int j = i + 1; j < verts.Length; j++)
+            {
+                // if any one inside limit distance...
+                if (Vector3.Distance(curVert, verts[j]) < aMaxDelta)
+                {
+                    verts[j] = curVert; // make it equal to vertex [i]
+                }
+            }
+        }
+
+        //https://answers.unity.com/questions/1382854/welding-vertices-at-runtime.html
+        //create mapping and find duplicates, dictionaries are like hashtables, mean fast
+        for (int i = 0; i < verts.Length; i++)
+        {
+            if (!duplicateHashTable.ContainsKey(verts[i]))
+            {
+                duplicateHashTable.Add(verts[i], newVerts.Count);
+                map[i] = newVerts.Count;
+                newVerts.Add(i);
+            }
+            else
+            {
+                map[i] = duplicateHashTable[verts[i]];
+            }
+        }
+
+        // create new vertices
+        var verts2 = new Vector3[newVerts.Count];
+        for (int i = 0; i < newVerts.Count; i++)
+        {
+            int a = newVerts[i];
+            verts2[i] = verts[a];
+        }
+        // map the triangle to the new vertices
+        var tris = aMesh.triangles;
+        for (int i = 0; i < tris.Length; i++)
+        {
+            tris[i] = map[tris[i]];
+        }
+        aMesh.triangles = tris;
+        aMesh.vertices = verts2;
+
+        return aMesh;
     }
     //Generate mesh out of the triangulation table and the marchedcube data
     private MeshData GenerateMesh(int outcase, float cubeSize) 
-    {        
+    {   
         List<int> triangles = new List<int>();
         List<Vector3> vertices = new List<Vector3>();
         int currenttriindex;
@@ -97,7 +244,7 @@ public class MarchingCubesTerrainScript : MonoBehaviour
             currenttriindex = TriangulationTable.triangulation[outcase, i];            
             if(currenttriindex != -1) 
             {
-                triangles.Add(currenttriindex);                
+                triangles.Add(currenttriindex); 
             }   
         }
         for (int i = 0; i < 12; i++)
@@ -119,7 +266,7 @@ public class MarchingCubesTerrainScript : MonoBehaviour
     }
     private void OnDrawGizmos()
     {
-        Gizmos.DrawWireCube(position + ((new Vector3(0, 0, 0) + size) / 2), (new Vector3(0, 0, 0) + size) * cubeSize);        
+        Gizmos.DrawWireCube(position + ((new Vector3(0, 0, 0) + size) / 2 * cubeSize * cubeSize), (new Vector3(0, 0, 0) + size) * cubeSize * cubeSize);        
     }
 }
 //Triangulation table from : http://paulbourke.net/geometry/polygonise/
@@ -489,7 +636,7 @@ public class MarchedCube
         float x, y, z;
         x = pos.x; y = pos.y; z = pos.z;
         float ground = -y + 3;//Create ground plane
-        float terrain = ground + PerlinNoise3D(pos * noiseScale)*10;
+        float terrain = ground + PerlinNoise3D(pos * noiseScale) * 4;
         return terrain;
     }
     //Perlin noise with octaves
@@ -508,17 +655,9 @@ public class MarchedCube
     //3D perlin noise
     private float PerlinNoise3D(Vector3 pos) 
     {
-        float x, y, z;
-        x = pos.x; y = pos.y; z = pos.z;
-        float AB = Mathf.PerlinNoise(x, y);
-        float BC = Mathf.PerlinNoise(y, z);
-        float AC = Mathf.PerlinNoise(x, z);
-
-        float BA = Mathf.PerlinNoise(y, x);
-        float CB = Mathf.PerlinNoise(z, y);
-        float CA = Mathf.PerlinNoise(z, x);
-        float v = (AB + BC + AC + BA + CB + CA) / 6.0f;
-        return (v * 2) - 1;
+        FastNoise noise = new FastNoise();
+        noise.SetNoiseType(FastNoise.NoiseType.Simplex);
+        return noise.GetSimplex(pos.x, pos.y, pos.z);
     }
 }
 //Each 8 Corners of the cube
