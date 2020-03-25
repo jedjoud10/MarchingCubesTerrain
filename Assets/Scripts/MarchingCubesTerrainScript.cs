@@ -61,7 +61,7 @@ public class MarchingCubesTerrainScript : MonoBehaviour
                 for (int y = 0; y < size.y; y++)
                 {
                     outcase = marchedCube.MarchCube((new Vector3(x, y, z) + position) * cubeSize);
-                    meshData = generateMesh(outcase, cubeSize);                    
+                    meshData = GenerateMesh(outcase, cubeSize);                    
                     newmesh = new Mesh
                     {
                         vertices = meshData.vertices.ToArray(),
@@ -86,7 +86,8 @@ public class MarchingCubesTerrainScript : MonoBehaviour
     {
         if (onValidate) marchCube();
     }
-    private MeshData generateMesh(int outcase, float cubeSize) 
+    //Generate mesh out of the triangulation table and the marchedcube data
+    private MeshData GenerateMesh(int outcase, float cubeSize) 
     {        
         List<int> triangles = new List<int>();
         List<Vector3> vertices = new List<Vector3>();
@@ -109,8 +110,12 @@ public class MarchingCubesTerrainScript : MonoBehaviour
         mesh.triangles = triangles;
         return mesh;
     }
+    private void OnDrawGizmos()
+    {
+        Gizmos.DrawWireCube(position + ((new Vector3(0, 0, 0) + size) / 2), (new Vector3(0, 0, 0) + size) * cubeSize);        
+    }
 }
-//Triangulation table
+//Triangulation table from : http://paulbourke.net/geometry/polygonise/
 public static class TriangulationTable 
 {
     public static int[,] triangulation = new int[256,16]{
@@ -376,13 +381,15 @@ public static class TriangulationTable
 public class MarchedCube
 {
     private float cubeSize;
-    private float threshold;
+    private float threshold;//If density is higher than this, there is terrain at that point
     private float scale;
     public int outcase;
     private float terrainHeight, noiseScale, persistance, lacunarity;
     private int octaves;
+    //Instantiate new MarchedCube class
     public MarchedCube(float _cubeSize, float _threshold, float _scale, float _terrainHeight, float _noiseScale, int _octaves, float _persistance, float _lacunarity) //Initialization of the MarchedCube
     {
+        //Setup parameters
         cubeSize = _cubeSize;
         threshold = _threshold;
         scale = _scale;
@@ -402,6 +409,7 @@ public class MarchedCube
         {
             edges[i] = new MarchedCubeEdge();
         }
+        //Set correct corner points for edges
         edges[0].vertex0 = corners[0]; edges[0].vertex1 = corners[1];
         edges[1].vertex0 = corners[1]; edges[1].vertex1 = corners[2];
         edges[2].vertex0 = corners[2]; edges[2].vertex1 = corners[3];
@@ -415,6 +423,7 @@ public class MarchedCube
         edges[10].vertex0 = corners[2]; edges[10].vertex1 = corners[6];
         edges[11].vertex0 = corners[3]; edges[11].vertex1 = corners[7];
     }
+    //Set parameters for an already generated MarchedCube class
     public void SetParams(float _cubeSize, float _threshold, float _scale, float _terrainHeight, float _noiseScale, int _octaves, float _persistance, float _lacunarity) 
     {
         cubeSize = _cubeSize;
@@ -459,7 +468,7 @@ public class MarchedCube
 
         for (int i = 0; i < corners.Length; i++)
         {
-            corners[i].density = Density(corners[i].pos, noiseScale);
+            corners[i].density = Density(corners[i].pos);
             corners[i].bit = corners[i].density < threshold;
             outcase += (corners[i].bit ? 1 : 0) * Mathf.RoundToInt(Mathf.Pow(2, i));
         } 
@@ -467,12 +476,13 @@ public class MarchedCube
         return outcase;
     }
     //How much terrain density at a current 3d point
-    private float Density(Vector3 pos, float noiseScale)
+    private float Density(Vector3 pos)
     {
         pos *= scale;
         float x, y, z;
         x = pos.x; y = pos.y; z = pos.z;
-        float terrain = PerlinNoise3D(pos * noiseScale);
+        float ground = -y + 3;//Create ground plane
+        float terrain = ground + PerlinNoise3D(pos * noiseScale)*10;
         return terrain;
     }
     //Perlin noise with octaves
