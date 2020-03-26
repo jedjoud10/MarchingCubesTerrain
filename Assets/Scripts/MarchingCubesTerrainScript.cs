@@ -13,7 +13,6 @@ public class MarchingCubesTerrainScript : MonoBehaviour
     private MarchedCube marchedCube;
     public bool onValidate;//Should we update the terrain if we change one of the parameters in the editor
     public bool interpolation;//Should we use interpolation for the edges points
-    public bool removeUnusedVertices;//Removes unused vertices from the generated mesh
     public bool mergeVertices;//Merges close vertices to a single vertex
     public float mergeDistance;//distance to merge closest vertices
     public Vector3Int position;//World position offset for the marched cube
@@ -70,10 +69,6 @@ public class MarchingCubesTerrainScript : MonoBehaviour
                         vertices = meshData.vertices.ToArray(),
                         triangles = meshData.triangles.ToArray()
                     };
-                    if(removeUnusedVertices) newmesh = ClearBlanks(newmesh);
-                    if(mergeVertices) newmesh = WeldVertices(newmesh, mergeDistance);
-                    newmesh.RecalculateNormals();
-                    newmesh.Optimize();
                     instance = new CombineInstance
                     {
                         mesh = newmesh,
@@ -83,7 +78,10 @@ public class MarchingCubesTerrainScript : MonoBehaviour
                 }
             }
         }
-        mesh.CombineMeshes(meshes.ToArray(), true);        
+        mesh.CombineMeshes(meshes.ToArray(), true);
+        if (mergeVertices) mesh = WeldVertices(mesh, mergeDistance);
+        mesh.Optimize();
+        mesh.RecalculateNormals();
         GetComponent<MeshFilter>().sharedMesh = mesh;
         stopwatch.Stop();
         UnityEngine.Debug.Log("Time taken for a " + size.x + " * " + size.y + " * " + size.z + " * " + "is :" + stopwatch.ElapsedMilliseconds / 1000.0f);
@@ -91,90 +89,7 @@ public class MarchingCubesTerrainScript : MonoBehaviour
     private void OnValidate()
     {
         if (onValidate) MarchCube();
-    }
-    //Remove unused vertices https://forum.unity.com/threads/remove-vertices-that-are-not-in-triangle-solved.342335/
-    Mesh ClearBlanks(Mesh mesh)
-    {
-        int[] triangles = mesh.triangles;
-        Vector3[] vertices = mesh.vertices;
-        List<Vector3> vertList = vertices.ToList();
-        List<int> trianglesList = triangles.ToList();
-
-        int testVertex = 0;
-
-        while (testVertex < vertList.Count)
-        {
-            if (trianglesList.Contains(testVertex))
-            {
-                //Debug.Log(testVertex);
-                testVertex++;
-            }
-            else
-            {
-                vertList.RemoveAt(testVertex);
-
-                for (int i = 0; i < trianglesList.Count; i++)
-                {
-                    if (trianglesList[i] > testVertex)
-                        trianglesList[i]--;
-                }
-            }
-        }
-
-        triangles = trianglesList.ToArray();
-        vertices = vertList.ToArray();
-
-        mesh.triangles = triangles;
-        mesh.vertices = vertices;
-        return mesh;
-    }
-    //Merges vertices that are close to each other https://answers.unity.com/questions/228841/dynamically-combine-verticies-that-share-the-same.html
-    private Mesh AutoWeld(Mesh mesh, float threshold)
-    {
-        Vector3[] verts = mesh.vertices;
-
-        // Build new vertex buffer and remove "duplicate" verticies
-        // that are within the given threshold.
-        List<Vector3> newVerts = new List<Vector3>();
-
-        int k = 0;
-
-        foreach (Vector3 vert in verts)
-        {
-            // Has vertex already been added to newVerts list?
-            foreach (Vector3 newVert in newVerts)
-                if (Vector3.Distance(newVert, vert) <= threshold)
-                    goto skipToNext;
-
-            // Accept new vertex!
-            newVerts.Add(vert);
-
-            skipToNext:;
-            ++k;
-        }
-
-        // Rebuild triangles using new verticies
-        int[] tris = mesh.triangles;
-        for (int i = 0; i < tris.Length; ++i)
-        {
-            // Find new vertex point from buffer
-            for (int j = 0; j < newVerts.Count; ++j)
-            {
-                if (Vector3.Distance(newVerts[j], verts[tris[i]]) <= threshold)
-                {
-                    tris[i] = j;
-                    break;
-                }
-            }
-        }
-
-        // Update mesh!
-        mesh.Clear();
-        mesh.vertices = newVerts.ToArray();
-        mesh.triangles = tris;
-        mesh.RecalculateBounds();
-        return mesh;
-    }
+    }    
     //Merges vertices that are close to each other https://answers.unity.com/questions/1382854/welding-vertices-at-runtime.html and from https://answers.unity.com/questions/228841/dynamically-combine-verticies-that-share-the-same.html
     public static Mesh WeldVertices(Mesh aMesh, float aMaxDelta = 0.01f)
     {
