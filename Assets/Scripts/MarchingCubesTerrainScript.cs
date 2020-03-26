@@ -4,6 +4,7 @@ using UnityEngine;
 using UnityEditor;
 using System.Linq;
 using System.Diagnostics;
+using System.Threading;
 //Marching cubes terrain script
 public class MarchingCubesTerrainScript : MonoBehaviour
 {
@@ -15,14 +16,11 @@ public class MarchingCubesTerrainScript : MonoBehaviour
     public bool interpolation;//Should we use interpolation for the edges points
     public bool mergeVertices;//Merges close vertices to a single vertex
     public float mergeDistance;//distance to merge closest vertices
-    public Vector3Int position;//World position offset for the marched cube
-    public Vector3Int size;//Size container for the marched cube
+    public int size;//Size container for each chunk of the marched cube
+    public Vector3Int worldSize;//How much chunks we have in the world
+    public Material material;
     private MeshData meshData;
 
-    public float terrainHeight;
-    public int octaves;
-    public float persistance;
-    public float lacunarity;
     public float noiseScale;
     // Start is called before the first frame update
     void Start()
@@ -41,34 +39,35 @@ public class MarchingCubesTerrainScript : MonoBehaviour
         public List<int> triangles;
     }
 
-    [ContextMenu("March Cube Test")]
-    public void MarchCube()
+
+    public void MarchCube(Vector3 position, MarchingCubeChunk chunk)
     {
         Stopwatch stopwatch = new Stopwatch();
         stopwatch.Start();
 
         meshData.vertices = new List<Vector3>();
         meshData.triangles = new List<int>();
-        if (marchedCube == null) marchedCube = new MarchedCube(cubeSize, threshold, scale, terrainHeight, noiseScale, octaves, persistance, lacunarity);
-        marchedCube.SetParams(cubeSize, threshold, scale, terrainHeight, noiseScale, octaves, persistance, lacunarity);
+        if (marchedCube == null) marchedCube = new MarchedCube(cubeSize, threshold, scale, noiseScale);
+        marchedCube.SetParams(cubeSize, threshold, scale, noiseScale);
         Mesh mesh = new Mesh();
-        Mesh newmesh;
+        Mesh newmesh = new Mesh();
         List<CombineInstance> meshes = new List<CombineInstance>();
         CombineInstance instance;
         int outcase;
-        for (int x = 0; x < size.x; x++)
+        for (int x = 0; x < size; x++)
         {
-            for (int z = 0; z < size.z; z++)
+            for (int z = 0; z < size; z++)
             {
-                for (int y = 0; y < size.y; y++)
+                for (int y = 0; y < size; y++)
                 {
                     outcase = marchedCube.MarchCube((new Vector3(x, y, z) + position) * cubeSize);
-                    meshData = GenerateMesh(outcase, cubeSize);                    
+                    meshData = GenerateMesh(outcase, cubeSize, position);
                     newmesh = new Mesh
                     {
                         vertices = meshData.vertices.ToArray(),
                         triangles = meshData.triangles.ToArray()
                     };
+
                     instance = new CombineInstance
                     {
                         mesh = newmesh,
@@ -82,14 +81,10 @@ public class MarchingCubesTerrainScript : MonoBehaviour
         if (mergeVertices) mesh = WeldVertices(mesh, mergeDistance);
         mesh.Optimize();
         mesh.RecalculateNormals();
-        GetComponent<MeshFilter>().sharedMesh = mesh;
+        mesh.RecalculateBounds();
         stopwatch.Stop();
-        UnityEngine.Debug.Log("Time taken for a " + size.x + " * " + size.y + " * " + size.z + " * " + "is :" + stopwatch.ElapsedMilliseconds / 1000.0f);
-    }
-    private void OnValidate()
-    {
-        if (onValidate) MarchCube();
-    }    
+        chunk.UpdateMesh(mesh);
+    }  
     //Merges vertices that are close to each other https://answers.unity.com/questions/1382854/welding-vertices-at-runtime.html and from https://answers.unity.com/questions/228841/dynamically-combine-verticies-that-share-the-same.html
     public static Mesh WeldVertices(Mesh aMesh, float aMaxDelta = 0.01f)
     {
@@ -149,7 +144,7 @@ public class MarchingCubesTerrainScript : MonoBehaviour
         return aMesh;
     }
     //Generate mesh out of the triangulation table and the marchedcube data
-    private MeshData GenerateMesh(int outcase, float cubeSize) 
+    private MeshData GenerateMesh(int outcase, float cubeSize, Vector3 offsetpos) 
     {   
         List<int> triangles = new List<int>();
         List<Vector3> vertices = new List<Vector3>();
@@ -166,7 +161,7 @@ public class MarchingCubesTerrainScript : MonoBehaviour
         {
             if (triangles.Contains(i))
             {
-                vertices.Add((marchedCube.GetEdgePoint(i, interpolation) * cubeSize));
+                vertices.Add(((marchedCube.GetEdgePoint(i, interpolation) - offsetpos) * cubeSize));
             }
             else 
             {
@@ -181,7 +176,7 @@ public class MarchingCubesTerrainScript : MonoBehaviour
     }
     private void OnDrawGizmos()
     {
-        Gizmos.DrawWireCube(position + ((new Vector3(0, 0, 0) + size) / 2 * cubeSize * cubeSize), (new Vector3(0, 0, 0) + size) * cubeSize * cubeSize);        
+        Gizmos.DrawWireCube(((new Vector3(size, size, size)) / 2 * cubeSize * cubeSize), (new Vector3(size, size, size)) * cubeSize * cubeSize);        
     }
 }
 //Triangulation table from : http://paulbourke.net/geometry/polygonise/
@@ -453,20 +448,15 @@ public class MarchedCube
     private float threshold;//If density is higher than this, there is terrain at that point
     private float scale;
     public int outcase;
-    private float terrainHeight, noiseScale, persistance, lacunarity;
-    private int octaves;
+    private float noiseScale;
     //Instantiate new MarchedCube class
-    public MarchedCube(float _cubeSize, float _threshold, float _scale, float _terrainHeight, float _noiseScale, int _octaves, float _persistance, float _lacunarity) //Initialization of the MarchedCube
+    public MarchedCube(float _cubeSize, float _threshold, float _scale, float _noiseScale) //Initialization of the MarchedCube
     {
         //Setup parameters
         cubeSize = _cubeSize;
         threshold = _threshold;
         scale = _scale;
-        terrainHeight = _terrainHeight;
         noiseScale = _noiseScale;
-        octaves = _octaves;
-        persistance = _persistance;
-        lacunarity = _lacunarity;
 
         corners = new MarchedCubeCorner[8];
         for (int i = 0; i < 8; i++)
@@ -493,16 +483,12 @@ public class MarchedCube
         edges[11].vertex0 = corners[3]; edges[11].vertex1 = corners[7];
     }
     //Set parameters for an already generated MarchedCube class
-    public void SetParams(float _cubeSize, float _threshold, float _scale, float _terrainHeight, float _noiseScale, int _octaves, float _persistance, float _lacunarity) 
+    public void SetParams(float _cubeSize, float _threshold, float _scale, float _noiseScale) 
     {
         cubeSize = _cubeSize;
         threshold = _threshold;
         scale = _scale;
-        terrainHeight = _terrainHeight;
         noiseScale = _noiseScale;
-        octaves = _octaves;
-        persistance = _persistance;
-        lacunarity = _lacunarity;
     }
     public MarchedCubeCorner[] corners = new MarchedCubeCorner[8];
     public MarchedCubeEdge[] edges = new MarchedCubeEdge[12];
@@ -551,21 +537,8 @@ public class MarchedCube
         float x, y, z;
         x = pos.x; y = pos.y; z = pos.z;
         float ground = -y + 3;//Create ground plane
-        float terrain = ground + PerlinNoise3D(pos * noiseScale) * 4;
+        float terrain = Noise(pos * noiseScale) * 4;
         return terrain;
-    }
-    //Perlin noise with octaves
-    private float PerlinNoiseOctaves(float x, float y) 
-    {
-        x *= noiseScale; y *= noiseScale;
-        float v = 0;
-        for (int i = 0; i < octaves; i++)
-        {
-            float l = Mathf.Pow(lacunarity, i);
-            float p = Mathf.Pow(persistance, i);
-            v += (Mathf.PerlinNoise(x * l, y * l) * 2 - 1) * p; 
-        }
-        return v * terrainHeight;
     }
     //3D perlin noise
     private float PerlinNoise3D(Vector3 pos) 
@@ -573,6 +546,15 @@ public class MarchedCube
         FastNoise noise = new FastNoise();
         noise.SetNoiseType(FastNoise.NoiseType.Simplex);
         return noise.GetSimplex(pos.x, pos.y, pos.z);
+    }
+    //Test noise
+    private float Noise(Vector3 pos) 
+    {
+        FastNoise noise = new FastNoise();
+        noise.SetNoiseType(FastNoise.NoiseType.Cellular);
+        noise.SetCellularDistanceFunction(FastNoise.CellularDistanceFunction.Euclidean);
+        noise.SetCellularReturnType(FastNoise.CellularReturnType.Distance);
+        return noise.GetCellular(pos.x, pos.y, pos.z) - 0.5f;
     }
 }
 //Each 8 Corners of the cube

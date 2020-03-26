@@ -20,10 +20,10 @@ Material:
     serializedVersion: 3
     m_TexEnvs: []
     m_Floats:
-    - _Glossiness: 0.5
+    - _Glossiness: 0
     - _Metallic: 0
-    - _pow: 1
+    - _pow: 5.83
     m_Colors:
-    - _Color: {r: 1, g: 0, b: 0, a: 1}
-    - _Color2: {r: 1, g: 1, b: 1, a: 1}
+    - _Color: {r: 1, g: 1, b: 1, a: 1}
+    - _Color2: {r: 0, g: 0, b: 0, a: 1}
   m_BuildTextureStacks: []

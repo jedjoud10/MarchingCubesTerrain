@@ -9,7 +9,7 @@ Material:
   m_PrefabAsset: {fileID: 0}
   m_Name: Custom_FlatSurfaceShaderNew
   m_Shader: {fileID: 4800000, guid: 3f1f8186f187f8e4c95595b1b6354996, type: 3}
-  m_ShaderKeywords: _INVERSEMATRIX_APPROXIMATE
+  m_ShaderKeywords: _INVERSEMATRIX_EXACT
   m_LightmapFlags: 4
   m_EnableInstancingVariants: 0
   m_DoubleSidedGI: 0
@@ -21,7 +21,7 @@ Material:
     m_TexEnvs: []
     m_Floats:
     - _Glossiness: 0
-    - _InverseMatrix: 0
+    - _InverseMatrix: 1
     - _Metallic: 0
     - _pow: 1
     - _thres: 0.613
