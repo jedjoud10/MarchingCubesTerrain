@@ -10,7 +10,6 @@ public class MarchingCubesTerrainScript : MonoBehaviour
 {
     public float threshold;//If density value is bigger than this, there is terrain at that 3D point
     public float cubeSize;//The size of the marched cube
-    public float scale;//The scale of the whole terrain locally
     private MarchedCube marchedCube;
     public bool onValidate;//Should we update the terrain if we change one of the parameters in the editor
     public bool interpolation;//Should we use interpolation for the edges points
@@ -19,40 +18,48 @@ public class MarchingCubesTerrainScript : MonoBehaviour
     public int size;//Size container for each chunk of the marched cube
     public Vector3Int worldSize;//How much chunks we have in the world
     public Material material;
-    private MeshData meshData;
+    private MarchingCubeChunk[,,] chunks;
+    private MarchingCubeDensityScript densityCalculator;
 
-    public float noiseScale;
     // Start is called before the first frame update
     void Start()
     {
-        
+        onValidate = false;
+        Destroy(GetComponent<MarchingCubeChunk>());
+        Destroy(GetComponent<MeshFilter>());
+        Destroy(GetComponent<MeshRenderer>());
     }
 
     // Update is called once per frame
     void Update()
     {
-        
+
     }
-    struct MeshData 
+    struct MeshData //Information about the mesh
     {
         public List<Vector3> vertices;
         public List<int> triangles;
     }
 
-
+    //Marches the cube in a x*x*x grid and generates a mesh out of it
     public void MarchCube(Vector3 position, MarchingCubeChunk chunk)
     {
         Stopwatch stopwatch = new Stopwatch();
         stopwatch.Start();
-
+        MeshData meshData;//Variable that will be helpful for storing and moving mesh data
         meshData.vertices = new List<Vector3>();
         meshData.triangles = new List<int>();
-        if (marchedCube == null) marchedCube = new MarchedCube(cubeSize, threshold, scale, noiseScale);
-        marchedCube.SetParams(cubeSize, threshold, scale, noiseScale);
+        //Init of the MarchedCube class
+        if (marchedCube == null) marchedCube = new MarchedCube(cubeSize, threshold, densityCalculator);
+        marchedCube.SetParams(cubeSize, threshold, densityCalculator);
+
+        //Input and output meshes
         Mesh mesh = new Mesh();
         Mesh newmesh = new Mesh();
+
         List<CombineInstance> meshes = new List<CombineInstance>();
-        CombineInstance instance;
+        CombineInstance instance = new CombineInstance();
+        instance.transform = transform.localToWorldMatrix;
         int outcase;
         for (int x = 0; x < size; x++)
         {
@@ -60,31 +67,29 @@ public class MarchingCubesTerrainScript : MonoBehaviour
             {
                 for (int y = 0; y < size; y++)
                 {
-                    outcase = marchedCube.MarchCube((new Vector3(x, y, z) + position) * cubeSize);
-                    meshData = GenerateMesh(outcase, cubeSize, position);
-                    newmesh = new Mesh
-                    {
-                        vertices = meshData.vertices.ToArray(),
-                        triangles = meshData.triangles.ToArray()
-                    };
+                    outcase = marchedCube.MarchCube((new Vector3(x, y, z) * cubeSize) + position);//Get density points at this location
+                    meshData = GenerateMesh(outcase, cubeSize, position);//Create a small mesh section out of the density points
+                    //Update current mesh
+                    newmesh = new Mesh();
+                    newmesh.vertices = meshData.vertices.ToArray();
+                    newmesh.triangles = meshData.triangles.ToArray();
 
-                    instance = new CombineInstance
-                    {
-                        mesh = newmesh,
-                        transform = transform.localToWorldMatrix
-                    };
+                    //Update combine instance and add it to the list                   
+                    instance.mesh = newmesh;
                     meshes.Add(instance);
                 }
             }
         }
+        //Create final mesh for this chunk
         mesh.CombineMeshes(meshes.ToArray(), true);
-        if (mergeVertices) mesh = WeldVertices(mesh, mergeDistance);
+        if (mergeVertices) AutoWeld(mesh, mergeDistance);
         mesh.Optimize();
         mesh.RecalculateNormals();
         mesh.RecalculateBounds();
         stopwatch.Stop();
+        UnityEngine.Debug.Log(stopwatch.ElapsedMilliseconds / 1000f);
         chunk.UpdateMesh(mesh);
-    }  
+    }
     //Merges vertices that are close to each other https://answers.unity.com/questions/1382854/welding-vertices-at-runtime.html and from https://answers.unity.com/questions/228841/dynamically-combine-verticies-that-share-the-same.html
     public static Mesh WeldVertices(Mesh aMesh, float aMaxDelta = 0.01f)
     {
@@ -92,22 +97,6 @@ public class MarchingCubesTerrainScript : MonoBehaviour
         Dictionary<Vector3, int> duplicateHashTable = new Dictionary<Vector3, int>();
         List<int> newVerts = new List<int>();
         int[] map = new int[verts.Length];
-
-
-        //https://answers.unity.com/questions/228841/dynamically-combine-verticies-that-share-the-same.html
-        for (int i = 0; i < verts.Length; i++)
-        {
-            Vector3 curVert = verts[i]; // get vertex [i]
-                                           // compare it to the next vertices:
-            for (int j = i + 1; j < verts.Length; j++)
-            {
-                // if any one inside limit distance...
-                if (Vector3.Distance(curVert, verts[j]) < aMaxDelta)
-                {
-                    verts[j] = curVert; // make it equal to vertex [i]
-                }
-            }
-        }
 
         //https://answers.unity.com/questions/1382854/welding-vertices-at-runtime.html
         //create mapping and find duplicates, dictionaries are like hashtables, mean fast
@@ -143,40 +132,127 @@ public class MarchingCubesTerrainScript : MonoBehaviour
 
         return aMesh;
     }
+    //Merge vertices that are close to each other https://answers.unity.com/questions/228841/dynamically-combine-verticies-that-share-the-same.html
+    private void AutoWeld(Mesh mesh, float threshold)
+    {
+        Vector3[] verts = mesh.vertices;
+
+        // Build new vertex buffer and remove "duplicate" verticies
+        // that are within the given threshold.
+        List<Vector3> newVerts = new List<Vector3>();
+
+        int k = 0;
+
+        foreach (Vector3 vert in verts)
+        {
+            // Has vertex already been added to newVerts list?
+            foreach (Vector3 newVert in newVerts)
+                if (Vector3.Distance(newVert, vert) <= threshold)
+                    goto skipToNext;
+
+            // Accept new vertex!
+            newVerts.Add(vert);
+
+            skipToNext:;
+            ++k;
+        }
+
+        // Rebuild triangles using new verticies
+        int[] tris = mesh.triangles;
+        for (int i = 0; i < tris.Length; ++i)
+        {
+            // Find new vertex point from buffer
+            for (int j = 0; j < newVerts.Count; ++j)
+            {
+                if (Vector3.Distance(newVerts[j], verts[tris[i]]) <= threshold)
+                {
+                    tris[i] = j;
+                    break;
+                }
+            }
+        }
+
+        // Update mesh!
+        mesh.Clear();
+        mesh.vertices = newVerts.ToArray();
+        mesh.triangles = tris;
+    }
     //Generate mesh out of the triangulation table and the marchedcube data
-    private MeshData GenerateMesh(int outcase, float cubeSize, Vector3 offsetpos) 
-    {   
+    private MeshData GenerateMesh(int outcase, float cubeSize, Vector3 offsetpos)
+    {
         List<int> triangles = new List<int>();
         List<Vector3> vertices = new List<Vector3>();
         int currenttriindex;
         for (int i = 0; i < 16; i++)
         {
-            currenttriindex = TriangulationTable.triangulation[outcase, i];            
-            if(currenttriindex != -1) 
+            currenttriindex = TriangulationTable.triangulation[outcase, i];
+            if (currenttriindex != -1)
             {
-                triangles.Add(currenttriindex); 
-            }   
+                triangles.Add(currenttriindex);//Make triangle face
+            }
         }
         for (int i = 0; i < 12; i++)
         {
             if (triangles.Contains(i))
             {
-                vertices.Add(((marchedCube.GetEdgePoint(i, interpolation) - offsetpos) * cubeSize));
+                vertices.Add((marchedCube.GetEdgePoint(i, interpolation) - offsetpos));//Add vertex at correct position
             }
-            else 
+            else
             {
-                vertices.Add(Vector3.zero);
+                vertices.Add(Vector3.zero);//We dont need to make this unused vertex compute its position
             }
         }
-        triangles.Reverse();
+        triangles.Reverse();//Invert the normals of the faces
         MeshData mesh = new MeshData();
         mesh.vertices = vertices;
         mesh.triangles = triangles;
         return mesh;
     }
+    //Generates all the chunks of the terrain
+    public void GenerateChunks() 
+    {
+        if (chunks == null || chunks.GetLength(0) != worldSize.x || chunks.GetLength(1) != worldSize.y || chunks.GetLength(2) != worldSize.z) chunks = new MarchingCubeChunk[worldSize.x, worldSize.y, worldSize.z];
+        chunks[0, 0, 0] = GetComponent<MarchingCubeChunk>();
+        for (int x = 0; x < worldSize.x; x++)
+        {
+            for (int y = 0; y < worldSize.y; y++)
+            {
+                for (int z = 0; z < worldSize.z; z++)
+                {
+                    if (chunks[x, y, z] == null)//Generate new chunks if they dont exist yet
+                    {
+                        GameObject chunk = new GameObject();
+                        chunk.transform.position = new Vector3(x * size * cubeSize, y * size * cubeSize, z * size * cubeSize);
+                        chunk.name = x + "-" + y + "-" + z;
+                        MarchingCubeChunk chunkScript = chunk.AddComponent<MarchingCubeChunk>();
+                        chunkScript.StartChunk(this);
+                        chunks[x, y, z] = chunkScript;
+                    }
+                    else 
+                    {
+                        MarchingCubeChunk chunkScript = chunks[x, y, z];
+                        chunkScript.transform.position = new Vector3(x * size * cubeSize, y * size * cubeSize, z * size * cubeSize);
+                        chunkScript.StartChunk(this);
+                    }
+                }
+            }
+        }
+    }
+    private void OnValidate()
+    {
+        OnValidatePublic();
+    }
+    public void OnValidatePublic() //Make method so when we change other script's data the mesh also gets updated
+    {
+        if (onValidate)
+        {
+            if(densityCalculator == null) densityCalculator = GetComponent<MarchingCubeDensityScript>();
+            GetComponent<MarchingCubeChunk>().StartChunk(this);
+        }
+    }
     private void OnDrawGizmos()
     {
-        Gizmos.DrawWireCube(((new Vector3(size, size, size)) / 2 * cubeSize * cubeSize), (new Vector3(size, size, size)) * cubeSize * cubeSize);        
+        Gizmos.DrawWireCube(((new Vector3(size, size, size)) / 2 * cubeSize), (new Vector3(size, size, size)) * cubeSize);        
     }
 }
 //Triangulation table from : http://paulbourke.net/geometry/polygonise/
@@ -446,17 +522,15 @@ public class MarchedCube
 {
     private float cubeSize;
     private float threshold;//If density is higher than this, there is terrain at that point
-    private float scale;
     public int outcase;
-    private float noiseScale;
+    MarchingCubeDensityScript densityCalculator;
     //Instantiate new MarchedCube class
-    public MarchedCube(float _cubeSize, float _threshold, float _scale, float _noiseScale) //Initialization of the MarchedCube
+    public MarchedCube(float _cubeSize, float _threshold, MarchingCubeDensityScript _densityCalculator) //Initialization of the MarchedCube
     {
         //Setup parameters
         cubeSize = _cubeSize;
         threshold = _threshold;
-        scale = _scale;
-        noiseScale = _noiseScale;
+        densityCalculator = _densityCalculator;
 
         corners = new MarchedCubeCorner[8];
         for (int i = 0; i < 8; i++)
@@ -483,12 +557,11 @@ public class MarchedCube
         edges[11].vertex0 = corners[3]; edges[11].vertex1 = corners[7];
     }
     //Set parameters for an already generated MarchedCube class
-    public void SetParams(float _cubeSize, float _threshold, float _scale, float _noiseScale) 
+    public void SetParams(float _cubeSize, float _threshold, MarchingCubeDensityScript _densityCalculator) 
     {
         cubeSize = _cubeSize;
         threshold = _threshold;
-        scale = _scale;
-        noiseScale = _noiseScale;
+        densityCalculator = _densityCalculator;
     }
     public MarchedCubeCorner[] corners = new MarchedCubeCorner[8];
     public MarchedCubeEdge[] edges = new MarchedCubeEdge[12];
@@ -533,28 +606,7 @@ public class MarchedCube
     //How much terrain density at a current 3d point
     private float Density(Vector3 pos)
     {
-        pos *= scale;
-        float x, y, z;
-        x = pos.x; y = pos.y; z = pos.z;
-        float ground = -y + 3;//Create ground plane
-        float terrain = Noise(pos * noiseScale) * 4;
-        return terrain;
-    }
-    //3D perlin noise
-    private float PerlinNoise3D(Vector3 pos) 
-    {
-        FastNoise noise = new FastNoise();
-        noise.SetNoiseType(FastNoise.NoiseType.Simplex);
-        return noise.GetSimplex(pos.x, pos.y, pos.z);
-    }
-    //Test noise
-    private float Noise(Vector3 pos) 
-    {
-        FastNoise noise = new FastNoise();
-        noise.SetNoiseType(FastNoise.NoiseType.Cellular);
-        noise.SetCellularDistanceFunction(FastNoise.CellularDistanceFunction.Euclidean);
-        noise.SetCellularReturnType(FastNoise.CellularReturnType.Distance);
-        return noise.GetCellular(pos.x, pos.y, pos.z) - 0.5f;
+        return densityCalculator.Density(pos);
     }
 }
 //Each 8 Corners of the cube

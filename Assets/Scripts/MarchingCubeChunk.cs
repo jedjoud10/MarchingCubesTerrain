@@ -1,6 +1,9 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+[RequireComponent(typeof (MeshFilter))]
+[RequireComponent(typeof (MeshRenderer))]
+[RequireComponent(typeof (MeshCollider))]
 
 public class MarchingCubeChunk : MonoBehaviour
 {
@@ -16,6 +19,8 @@ public class MarchingCubeChunk : MonoBehaviour
     {
         terrainGenerator = terrain;
         terrainGenerator.MarchCube(transform.position, this);
+        GetComponent<MeshRenderer>().material = terrain.material;
+        GetComponent<MeshRenderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.TwoSided;
     }
 
     // Update is called once per frame
@@ -23,10 +28,11 @@ public class MarchingCubeChunk : MonoBehaviour
     {
         
     }
-    //Update current mesh from multithreaded method
+    //Update current mesh
     public void UpdateMesh(Mesh _mesh) 
     {
         mesh = _mesh;
         GetComponent<MeshFilter>().sharedMesh = mesh;
+        GetComponent<MeshCollider>().sharedMesh = mesh;
     }
 }
