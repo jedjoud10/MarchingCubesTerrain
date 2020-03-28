@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-public class MarchingCubeDensityScript : MonoBehaviour
+public class MarchingCubesDensityScript : MonoBehaviour
 {
     public float scale;
     public float noiseScale;
@@ -25,7 +25,7 @@ public class MarchingCubeDensityScript : MonoBehaviour
     //How much terrain density at a current 3d point
     public float Density(Vector3 pos)
     {
-        pos *= scale;
+        pos.x *= scale; pos.z *= scale;
         float x, y, z;
         x = pos.x; y = pos.y; z = pos.z;
         float ground = -y * height3 + offset;//Create ground plane

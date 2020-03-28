@@ -9,6 +9,15 @@ using System.Threading;
 public class MarchingCubesTerrainScript : MonoBehaviour
 {
     public float threshold;//If density value is bigger than this, there is terrain at that 3D point
+
+    /// <summary>
+    /// Before making a chunk, we could optimize this terrain by checking if the position of that chunk itself is terrain, if it is then we can generate that chunk
+    /// if it is not, we dont have to generate that chunk because we know there is no terrain. But what if the position of the chunk is somewhere where there is not air, but the chunk is actually filled with terrain ? 
+    /// Well then we should have another threshold value that controls if those empty (or not) chunks should be generated
+    /// We can turn this value low (-1) to make those more empty spaced chunks to generate
+    /// Or we can turn it high (0) to make them not generate (Which might cause chunks to not be generated, so it might corrupt the terrain a little) 
+    /// </summary>
+    public float chunkThreshold;
     public float cubeSize;//The size of the marched cube
     private MarchedCube marchedCube;
     public bool onValidate;//Should we update the terrain if we change one of the parameters in the editor
@@ -18,16 +27,27 @@ public class MarchingCubesTerrainScript : MonoBehaviour
     public int size;//Size container for each chunk of the marched cube
     public Vector3Int worldSize;//How much chunks we have in the world
     public Material material;
-    private MarchingCubeChunk[,,] chunks;
-    private MarchingCubeDensityScript densityCalculator;
+    private MarchingCubesChunk[,,] chunks;
+    private MarchingCubesDensityScript densityCalculator;
 
     // Start is called before the first frame update
     void Start()
     {
         onValidate = false;
-        Destroy(GetComponent<MarchingCubeChunk>());
+        Destroy(GetComponent<MarchingCubesChunk>());
         Destroy(GetComponent<MeshFilter>());
         Destroy(GetComponent<MeshRenderer>());
+        chunks = new MarchingCubesChunk[worldSize.x, worldSize.y, worldSize.z];
+        for (int x = 0; x < worldSize.x; x++)
+        {
+            for (int y = 0; y < worldSize.y; y++)
+            {
+                for (int z = 0; z < worldSize.z; z++)
+                {
+                    chunks[x, y, z] = null;
+                }
+            }
+        }
     }
 
     // Update is called once per frame
@@ -42,7 +62,7 @@ public class MarchingCubesTerrainScript : MonoBehaviour
     }
 
     //Marches the cube in a x*x*x grid and generates a mesh out of it
-    public void MarchCube(Vector3 position, MarchingCubeChunk chunk)
+    public Mesh MarchCube(Vector3 position)
     {
         Stopwatch stopwatch = new Stopwatch();
         stopwatch.Start();
@@ -87,8 +107,8 @@ public class MarchingCubesTerrainScript : MonoBehaviour
         mesh.RecalculateNormals();
         mesh.RecalculateBounds();
         stopwatch.Stop();
-        UnityEngine.Debug.Log(stopwatch.ElapsedMilliseconds / 1000f);
-        chunk.UpdateMesh(mesh);
+        //UnityEngine.Debug.Log(stopwatch.ElapsedMilliseconds / 1000f);
+        return mesh;
     }
     //Merges vertices that are close to each other https://answers.unity.com/questions/1382854/welding-vertices-at-runtime.html and from https://answers.unity.com/questions/228841/dynamically-combine-verticies-that-share-the-same.html
     public static Mesh WeldVertices(Mesh aMesh, float aMaxDelta = 0.01f)
@@ -211,33 +231,118 @@ public class MarchingCubesTerrainScript : MonoBehaviour
     //Generates all the chunks of the terrain
     public void GenerateChunks() 
     {
-        if (chunks == null || chunks.GetLength(0) != worldSize.x || chunks.GetLength(1) != worldSize.y || chunks.GetLength(2) != worldSize.z) chunks = new MarchingCubeChunk[worldSize.x, worldSize.y, worldSize.z];
-        chunks[0, 0, 0] = GetComponent<MarchingCubeChunk>();
+        if (chunks == null || chunks.GetLength(0) != worldSize.x || chunks.GetLength(1) != worldSize.y || chunks.GetLength(2) != worldSize.z) chunks = new MarchingCubesChunk[worldSize.x, worldSize.y, worldSize.z];
+        chunks[0, 0, 0] = GetComponent<MarchingCubesChunk>();
         for (int x = 0; x < worldSize.x; x++)
         {
             for (int y = 0; y < worldSize.y; y++)
             {
                 for (int z = 0; z < worldSize.z; z++)
                 {
-                    if (chunks[x, y, z] == null)//Generate new chunks if they dont exist yet
-                    {
-                        GameObject chunk = new GameObject();
-                        chunk.transform.position = new Vector3(x * size * cubeSize, y * size * cubeSize, z * size * cubeSize);
-                        chunk.name = x + "-" + y + "-" + z;
-                        MarchingCubeChunk chunkScript = chunk.AddComponent<MarchingCubeChunk>();
-                        chunkScript.StartChunk(this);
-                        chunks[x, y, z] = chunkScript;
-                    }
-                    else 
-                    {
-                        MarchingCubeChunk chunkScript = chunks[x, y, z];
-                        chunkScript.transform.position = new Vector3(x * size * cubeSize, y * size * cubeSize, z * size * cubeSize);
-                        chunkScript.StartChunk(this);
-                    }
+                    GenerateChunk(x, y, z, true);
                 }
             }
         }
     }
+    //Generate a single chunk
+    public void GenerateChunk(int x, int y, int z, bool recalculateChunks) 
+    {
+        if (x < 0 || y < 0 || z < 0) return;
+        if (x >= chunks.GetLength(0) || y >= chunks.GetLength(1) || z >= chunks.GetLength(2)) return;
+        Vector3 chunkPos = TransformCoordinatesChunkToWorld(x, y, z);
+        if (chunks[x, y, z] == null)//Generate new chunks if they dont exist yet
+        {
+            if(densityCalculator.Density(chunkPos) < chunkThreshold) return;//This hcunk is not filled with terrain
+            
+            GameObject chunk = new GameObject();
+            chunk.transform.position = chunkPos;
+            chunk.name = x + "-" + y + "-" + z;
+            chunk.transform.parent = transform;
+            MarchingCubesChunk chunkScript = chunk.AddComponent<MarchingCubesChunk>();
+            chunkScript.StartChunk(this);
+            chunkScript.UpdateMesh(MarchCube(chunkPos));
+            chunkScript.x = x; chunkScript.y = y; chunkScript.z = z;
+            chunks[x, y, z] = chunkScript;
+        }
+        else if(recalculateChunks)
+        {
+            MarchingCubesChunk chunkScript = chunks[x, y, z];
+            chunkScript.transform.position = chunkPos;
+            chunkScript.UpdateMesh(MarchCube(chunkPos));
+        }
+    }
+    //Generate a single chunk using world coordinates
+    public void GenerateChunk(Vector3 pos, bool recalculateChunks)
+    {
+        Vector3Int chunkCoords = TransformCoordinatesWorldToChunk(pos);
+        GenerateChunk(chunkCoords.x, chunkCoords.y, chunkCoords.z, recalculateChunks);
+    }
+    //Transform chunk coordinates into world coordinates
+    public Vector3 TransformCoordinatesChunkToWorld(int x, int y, int z) 
+    {
+        return new Vector3(x * size * cubeSize, y * size * cubeSize, z * size * cubeSize);
+    }
+    //Transform chunk coordinates into world coordinates with vector3int
+    public Vector3 TransformCoordinatesChunkToWorld(Vector3Int pos)
+    {
+        return new Vector3(pos.x * size * cubeSize, pos.y * size * cubeSize, pos.z * size * cubeSize);
+    }
+    public Vector3Int TransformCoordinatesWorldToChunk(Vector3 pos) 
+    {
+        return new Vector3Int(Mathf.RoundToInt(pos.x / size / cubeSize), Mathf.RoundToInt(pos.y / size / cubeSize), Mathf.RoundToInt(pos.z / size / cubeSize));
+    }
+    //Set chunk visibility from world coordinates
+    public void SetChunkVisibility(Vector3 pos, bool isVisible)
+    {
+        MarchingCubesChunk chunk = GetChunk(pos);
+        if (isVisible) chunk.OnShowChunk();
+        else chunk.OnHideChunk();
+    }
+    //Set chunk visibility
+    public void SetChunkVisibility(int x, int y, int z, bool isVisible)
+    {
+        MarchingCubesChunk chunk = GetChunk(x, y, z);
+        if (chunk == null) return;
+        if (isVisible) chunk.OnShowChunk();
+        else chunk.OnHideChunk();
+    }
+    //Set chunk visibility with already given chunk
+    public void SetChunkVisibility(MarchingCubesChunk chunk, bool isVisible)
+    {
+        if (chunk == null) return;
+        if (isVisible) chunk.OnShowChunk();
+        else chunk.OnHideChunk();
+    }
+    //Set chunk visibilty for all chunks
+    public void SetChunksVisibility(bool isVisible) 
+    {
+        foreach (var chunk in chunks)
+        {
+            if (chunk == null) continue;
+            if (isVisible) chunk.OnShowChunk();
+            else chunk.OnHideChunk();
+        }
+    }
+    //Get chunk (Returns null if chunk is outside map bounds)
+    public MarchingCubesChunk GetChunk(Vector3 pos) 
+    {
+        int x, y, z;
+        x = Mathf.RoundToInt(pos.x / size / cubeSize);
+        y = Mathf.RoundToInt(pos.y / size / cubeSize);
+        z = Mathf.RoundToInt(pos.z / size / cubeSize);
+        if (x < 0 || y < 0 || z < 0) return null;
+        if (x >= chunks.GetLength(0) || y >= chunks.GetLength(1) || z >= chunks.GetLength(2)) return null;
+        return chunks[x, y, z];
+    }
+    //Get chunk (Returns null if chunk is outside map bounds)
+    public MarchingCubesChunk GetChunk(int x, int y, int z)
+    {
+        if (x < 0 || y < 0 || z < 0) return null; 
+        if (x >= chunks.GetLength(0) || y >= chunks.GetLength(1) || z >= chunks.GetLength(2)) return null; 
+        return chunks[x, y, z];
+    }
+
+    //Debug stuff
     private void OnValidate()
     {
         OnValidatePublic();
@@ -246,8 +351,9 @@ public class MarchingCubesTerrainScript : MonoBehaviour
     {
         if (onValidate)
         {
-            if(densityCalculator == null) densityCalculator = GetComponent<MarchingCubeDensityScript>();
-            GetComponent<MarchingCubeChunk>().StartChunk(this);
+            if(densityCalculator == null) densityCalculator = GetComponent<MarchingCubesDensityScript>();
+            GetComponent<MarchingCubesChunk>().StartChunk(this);
+            GetComponent<MarchingCubesChunk>().UpdateMesh(MarchCube(transform.position));
         }
     }
     private void OnDrawGizmos()
@@ -523,9 +629,9 @@ public class MarchedCube
     private float cubeSize;
     private float threshold;//If density is higher than this, there is terrain at that point
     public int outcase;
-    MarchingCubeDensityScript densityCalculator;
+    MarchingCubesDensityScript densityCalculator;
     //Instantiate new MarchedCube class
-    public MarchedCube(float _cubeSize, float _threshold, MarchingCubeDensityScript _densityCalculator) //Initialization of the MarchedCube
+    public MarchedCube(float _cubeSize, float _threshold, MarchingCubesDensityScript _densityCalculator) //Initialization of the MarchedCube
     {
         //Setup parameters
         cubeSize = _cubeSize;
@@ -557,7 +663,7 @@ public class MarchedCube
         edges[11].vertex0 = corners[3]; edges[11].vertex1 = corners[7];
     }
     //Set parameters for an already generated MarchedCube class
-    public void SetParams(float _cubeSize, float _threshold, MarchingCubeDensityScript _densityCalculator) 
+    public void SetParams(float _cubeSize, float _threshold, MarchingCubesDensityScript _densityCalculator) 
     {
         cubeSize = _cubeSize;
         threshold = _threshold;
