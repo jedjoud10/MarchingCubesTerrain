@@ -122,7 +122,7 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 0}
---- !u!43 &90854787
+--- !u!43 &117987097
 Mesh:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -139,8 +139,8 @@ Mesh:
     firstVertex: 0
     vertexCount: 3
     localAABB:
-      m_Center: {x: 0.07932708, y: 0.0177006, z: 4.9360247}
-      m_Extent: {x: 0.07932708, y: 0.0177006, z: 0.07733488}
+      m_Center: {x: 0.07932708, y: 0.011029937, z: 4.9360247}
+      m_Extent: {x: 0.07932708, y: 0.011029937, z: 0.07733488}
   m_Shapes:
     vertices: []
     shapes: []
@@ -219,7 +219,7 @@ Mesh:
       format: 0
       dimension: 0
     m_DataSize: 72
-    _typelessdata: 0000000000000000637a9b40e51067be844172bfb6046d3e3c76223e00000000716da040e51067be844172bfb6046d3e00000000d900113d0c1ca040e51067be844172bfb6046d3e
+    _typelessdata: 0000000000000000637a9b40061216be6e4b7abfb2ef193e3c76223e00000000716da040061216be6e4b7abfb2ef193e00000000e9b6b43cba11a040061216be6e4b7abfb2ef193e
   m_CompressedMesh:
     m_Vertices:
       m_NumItems: 0
@@ -273,8 +273,8 @@ Mesh:
       m_BitSize: 0
     m_UVInfo: 0
   m_LocalAABB:
-    m_Center: {x: 0.07932708, y: 0.0177006, z: 4.9360247}
-    m_Extent: {x: 0.07932708, y: 0.0177006, z: 0.07733488}
+    m_Center: {x: 0.07932708, y: 0.011029937, z: 4.9360247}
+    m_Extent: {x: 0.07932708, y: 0.011029937, z: 0.07733488}
   m_MeshUsageFlags: 0
   m_BakedConvexCollisionMesh: 
   m_BakedTriangleCollisionMesh: 
@@ -475,8 +475,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e7ae53a6a102de04c9ebd8013052066e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  chunkDistance: 6
+  chunkDistance: 2
   keepChunksLoaded: 1
+  canGenerateChunks: 0
 --- !u!114 &963194230
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -580,15 +581,17 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   threshold: 0
-  chunkThreshold: -8
+  chunkThreshold: -12
   cubeSize: 1
   onValidate: 1
   interpolation: 1
   mergeVertices: 1
   mergeDistance: 0.0005
   size: 5
-  worldSize: {x: 30, y: 5, z: 30}
+  worldSize: {x: 10, y: 5, z: 10}
   material: {fileID: 2100000, guid: 9d4dfa35e75237349b49150d17598d3d, type: 2}
+  chunkPrefab: {fileID: 5154164806003860041, guid: b6fe6ed393e3d1b4f8562f2b34fe7aa6,
+    type: 3}
 --- !u!4 &1600802615
 Transform:
   m_ObjectHideFlags: 0
@@ -610,7 +613,7 @@ MeshFilter:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1600802611}
-  m_Mesh: {fileID: 90854787}
+  m_Mesh: {fileID: 117987097}
 --- !u!64 &1600802617
 MeshCollider:
   m_ObjectHideFlags: 0
@@ -624,7 +627,7 @@ MeshCollider:
   serializedVersion: 3
   m_Convex: 0
   m_CookingOptions: 30
-  m_Mesh: {fileID: 90854787}
+  m_Mesh: {fileID: 117987097}
 --- !u!114 &1600802618
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -642,5 +645,5 @@ MonoBehaviour:
   noiseScale2: 9
   height: 5
   height2: -15
-  height3: 1
+  height3: 0.3
   offset: 6.86

@@ -7,7 +7,7 @@ using UnityEngine;
 
 public class MarchingCubesChunk : MonoBehaviour
 {
-    private MeshRenderer renderer;
+    private MeshRenderer chunkRenderer;
     [HideInInspector]
     public int x, y, z;
     // Start is called before the first frame update
@@ -16,11 +16,12 @@ public class MarchingCubesChunk : MonoBehaviour
 
     }
     //Starts generating this chunk
-    public void StartChunk(MarchingCubesTerrainScript terrain) 
+    public void StartChunk(MarchingCubesTerrainScript terrain, int _x, int _y, int _z) 
     {
-        renderer = GetComponent<MeshRenderer>();
-        renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.TwoSided;
-        renderer.material = terrain.material;
+        chunkRenderer = GetComponent<MeshRenderer>();
+        chunkRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.TwoSided;
+        chunkRenderer.material = terrain.material;
+        x = _x; y = _y; z = _z;
     }
 
     // Update is called once per frame
@@ -37,13 +38,13 @@ public class MarchingCubesChunk : MonoBehaviour
     //Hide chunk
     public void OnHideChunk() 
     {
-        if (renderer == null) return;
-        renderer.enabled = false;
+        if (chunkRenderer == null) return;
+        chunkRenderer.enabled = false;
     }
     //Show chunk
     public void OnShowChunk()
     {
-        if (renderer == null) return;
-        renderer.enabled = true;
+        if (chunkRenderer == null) return;
+        chunkRenderer.enabled = true;
     }
 }
