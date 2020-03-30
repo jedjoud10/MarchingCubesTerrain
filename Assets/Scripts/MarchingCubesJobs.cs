@@ -25,7 +25,7 @@ public struct MarchedCubeEdge
 //Called on each "center-point" in the marched cube bound
 public struct MarchingCubesMarchJob : IJobParallelFor
 {    
-    public static int[,] triangulation = new int[256, 16]{
+    private static int[,] triangulation = new int[256, 16]{
     {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1 },
     { 0, 8, 3, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1 },
     { 0, 1, 9, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1 },
@@ -288,8 +288,8 @@ public struct MarchingCubesMarchJob : IJobParallelFor
     public Vector3[] positions;//All the points that the cube is going to march through
     private Vector3 position;//Position of the marched cube
     public bool interpolation;//Are we using interpolation
-    private float cubeSize;
-    private float threshold;//If density is higher than this, there is terrain at that point
+    public float cubeSize;
+    public float threshold;//If density is higher than this, there is terrain at that point
     private int outcase;
     private MarchedCubeCorner[] corners;
     private MarchedCubeEdge[] edges;
@@ -324,7 +324,7 @@ public struct MarchingCubesMarchJob : IJobParallelFor
         corners[6].density = Density(corners[6].pos); outcase += (corners[6].density < threshold ? 1 : 0) * Mathf.RoundToInt(Mathf.Pow(2, 6));
         corners[7].density = Density(corners[7].pos); outcase += (corners[7].density < threshold ? 1 : 0) * Mathf.RoundToInt(Mathf.Pow(2, 7));
         //Return single marched cube mesh
-        outputMesh[0] = GenerateMesh(outcase);
+        outputMesh[index] = GenerateMesh(outcase);
     }
 
     #region Noise and Density functions
