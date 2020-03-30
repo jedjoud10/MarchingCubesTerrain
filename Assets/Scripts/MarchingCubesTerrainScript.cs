@@ -4,6 +4,8 @@ using UnityEngine;
 using UnityEditor;
 using System.Linq;
 using System.Diagnostics;
+using Unity.Jobs;
+using UnityEngine.Jobs;
 //Marching cubes terrain script
 public class MarchingCubesTerrainScript : MonoBehaviour
 {
@@ -322,16 +324,15 @@ public class MarchingCubesTerrainScript : MonoBehaviour
     {
 
     }
-    struct MeshData //Information about the mesh
+    /*struct MeshData //Information about the mesh
     {
         public List<Vector3> vertices;
         public List<int> triangles;
-    }
+    }*/
 
     //Marches the cube in a x*x*x grid and generates a mesh out of it
     public Mesh MarchCube(Vector3 position)
     {
-
         MeshData meshData;//Variable that will be helpful for storing and moving mesh data
         meshData.vertices = new List<Vector3>();
         meshData.triangles = new List<int>();
@@ -560,7 +561,6 @@ public class MarchingCubesTerrainScript : MonoBehaviour
         if (x >= worldSize.x || y >= worldSize.y || z >= worldSize.z) return null; 
         return chunks[x, y, z];
     }
-
     //Debug stuff
     private void OnValidate()
     {
@@ -617,8 +617,6 @@ public class MarchedCube
         densityCalculator = _densityCalculator;
         corners = new MarchedCubeCorner[8];
         edges = new MarchedCubeEdge[12];
-
-
     }
     //Set correct corner points for edges
     private void SetVerticesForEdges() 
