@@ -10,11 +10,6 @@ public class MarchingCubesChunk : MonoBehaviour
     private MeshRenderer chunkRenderer;
     [HideInInspector]
     public int x, y, z;
-    // Start is called before the first frame update
-    void Start()
-    {        
-
-    }
     //Starts generating this chunk
     public void StartChunk(MarchingCubesTerrainScript terrain, int _x, int _y, int _z) 
     {
@@ -22,12 +17,6 @@ public class MarchingCubesChunk : MonoBehaviour
         chunkRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.TwoSided;
         chunkRenderer.material = terrain.material;
         x = _x; y = _y; z = _z;
-    }
-
-    // Update is called once per frame
-    void Update()
-    {
-        
     }
     //Update current mesh
     public void UpdateMesh(Mesh _mesh) 

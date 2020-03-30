@@ -7,16 +7,16 @@ public class MarchingCubesCameraScript : MonoBehaviour
     public int chunkDistance;//The maximum distance we can see chunks at
     public bool keepChunksLoaded;//Keeps the generated chunks loaded even if we get far away from them
     private MarchingCubesTerrainScript terrainScript;//Terrain generator
-    private List<MarchingCubesChunk> loadedChunks;
+    private HashSet<MarchingCubesChunk> loadedChunks;
     private Vector3Int chunkCoordinates;//Chunk coordinates of the camera
     private Vector3Int oldChunkCoordinates;//Chunk coordinates from last frame
     [HideInInspector]
-    public bool canGenerateChunks = false;
+    public bool canGenerateChunks = false;    
     // Start is called before the first frame update
     void Start()
     {
         terrainScript = GameObject.FindObjectOfType<MarchingCubesTerrainScript>();
-        loadedChunks = new List<MarchingCubesChunk>(); 
+        loadedChunks = new HashSet<MarchingCubesChunk>(); 
     }
 
     // Update is called once per frame
@@ -24,8 +24,8 @@ public class MarchingCubesCameraScript : MonoBehaviour
     {
         if (canGenerateChunks)
         {
-            chunkCoordinates = terrainScript.TransformCoordinatesWorldToChunk(transform.position);
-            if (oldChunkCoordinates != chunkCoordinates)
+            chunkCoordinates = terrainScript.TransformCoordinatesWorldToChunk(transform.position);//Get chunk at our exact position
+            if (oldChunkCoordinates != chunkCoordinates)//If we moved from last frame chunk
             {
                 terrainScript.GenerateChunk(transform.position, false);
                 if (!keepChunksLoaded) terrainScript.SetChunksVisibility(false);
@@ -42,10 +42,7 @@ public class MarchingCubesCameraScript : MonoBehaviour
                             terrainScript.GenerateChunk(xc, yc, zc, false);
                             if (!keepChunksLoaded) terrainScript.SetChunkVisibility(xc, yc, zc, true);
                             MarchingCubesChunk chunk = terrainScript.GetChunk(xc, yc, zc);
-                            if (!loadedChunks.Contains(chunk))
-                            {
-                                loadedChunks.Add(chunk);
-                            }
+                            if(!loadedChunks.Contains(chunk)) loadedChunks.Add(chunk);                            
                         }
                     }
                 }
