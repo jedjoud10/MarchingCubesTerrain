@@ -7,50 +7,32 @@ public class MarchingCubesCameraScript : MonoBehaviour
     public int chunkDistance;//The maximum distance we can see chunks at
     public bool keepChunksLoaded;//Keeps the generated chunks loaded even if we get far away from them
     private MarchingCubesTerrainScript terrainScript;//Terrain generator
-<<<<<<< HEAD
-    private HashSet<MarchingCubesChunk> loadedChunks;
+    private List<MarchingCubesChunk> loadedChunks;
     private Vector3Int chunkCoordinates;//Chunk coordinates of the camera
     private Vector3Int oldChunkCoordinates;//Chunk coordinates from last frame
     [HideInInspector]
-    public bool canGenerateChunks = false;    
-=======
-    private List<MarchingCubesChunk> loadedChunks;
-    private Vector3Int chunkCoordinates;
->>>>>>> parent of de138c1... Optimized a bit by turning classes into structs
+    public bool canGenerateChunks = false;
     // Start is called before the first frame update
     void Start()
     {
         terrainScript = GameObject.FindObjectOfType<MarchingCubesTerrainScript>();
-        loadedChunks = new HashSet<MarchingCubesChunk>(); 
+        loadedChunks = new List<MarchingCubesChunk>(); 
     }
 
     // Update is called once per frame
     void Update()
     {
-        terrainScript.GenerateChunk(transform.position, false);
-        if(!keepChunksLoaded) terrainScript.SetChunksVisibility(false);
-        for (int x = -chunkDistance; x < chunkDistance; x++)
+        if (canGenerateChunks)
         {
-<<<<<<< HEAD
-            chunkCoordinates = terrainScript.TransformCoordinatesWorldToChunk(transform.position);//Get chunk at our exact position
-            if (oldChunkCoordinates != chunkCoordinates)//If we moved from last frame chunk
-=======
-            for (int y = -chunkDistance; y < chunkDistance; y++)
->>>>>>> parent of de138c1... Optimized a bit by turning classes into structs
+            chunkCoordinates = terrainScript.TransformCoordinatesWorldToChunk(transform.position);
+            if (oldChunkCoordinates != chunkCoordinates)
             {
-                for (int z = -chunkDistance; z < chunkDistance; z++)
+                terrainScript.GenerateChunk(transform.position, false);
+                if (!keepChunksLoaded) terrainScript.SetChunksVisibility(false);
+                for (int x = -chunkDistance; x < chunkDistance; x++)
                 {
-                    int xc, yc, zc;
-                    chunkCoordinates = terrainScript.TransformCoordinatesWorldToChunk(transform.position);
-                    xc = x + chunkCoordinates.x;
-                    yc = y + chunkCoordinates.y;
-                    zc = z + chunkCoordinates.z;
-                    terrainScript.GenerateChunk(xc, yc, zc, false);
-                    if (!keepChunksLoaded) terrainScript.SetChunkVisibility(xc, yc, zc, true);
-                    MarchingCubesChunk chunk = terrainScript.GetChunk(xc, yc, zc);
-                    if (!loadedChunks.Contains(chunk))
+                    for (int y = -chunkDistance; y < chunkDistance; y++)
                     {
-<<<<<<< HEAD
                         for (int z = -chunkDistance; z < chunkDistance; z++)
                         {
                             int xc, yc, zc;
@@ -60,17 +42,17 @@ public class MarchingCubesCameraScript : MonoBehaviour
                             terrainScript.GenerateChunk(xc, yc, zc, false);
                             if (!keepChunksLoaded) terrainScript.SetChunkVisibility(xc, yc, zc, true);
                             MarchingCubesChunk chunk = terrainScript.GetChunk(xc, yc, zc);
-                            if(!loadedChunks.Contains(chunk)) loadedChunks.Add(chunk);                            
+                            if (!loadedChunks.Contains(chunk))
+                            {
+                                loadedChunks.Add(chunk);
+                            }
                         }
                     }
-=======
-                        loadedChunks.Add(chunk);
-                    }                    
->>>>>>> parent of de138c1... Optimized a bit by turning classes into structs
                 }
+                if (!keepChunksLoaded) loadedChunks.Clear();
             }
-        }        
-        if(!keepChunksLoaded)loadedChunks.Clear();
+            oldChunkCoordinates = chunkCoordinates;
+        }
     }
     private void OnDrawGizmos()
     {

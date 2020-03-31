@@ -1,16 +1,9 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using Unity.Collections;
 using UnityEditor;
 using System.Linq;
 using System.Diagnostics;
-<<<<<<< HEAD
-using Unity.Jobs;
-using UnityEngine.Jobs;
-=======
-using System.Threading;
->>>>>>> parent of de138c1... Optimized a bit by turning classes into structs
 //Marching cubes terrain script
 public class MarchingCubesTerrainScript : MonoBehaviour
 {
@@ -25,6 +18,7 @@ public class MarchingCubesTerrainScript : MonoBehaviour
     /// </summary>
     public float chunkThreshold;
     public float cubeSize;//The size of the marched cube
+    private MarchedCube marchedCube;
     public bool onValidate;//Should we update the terrain if we change one of the parameters in the editor
     public bool interpolation;//Should we use interpolation for the edges points
     public bool mergeVertices;//Merges close vertices to a single vertex
@@ -33,426 +27,9 @@ public class MarchingCubesTerrainScript : MonoBehaviour
     public Vector3Int worldSize;//How much chunks we have in the world
     public Material material;
     private MarchingCubesChunk[,,] chunks;
-    private Vector3[] marchingPoints;//3D points where the marching cube is going to march through (Only in one single chunk)
+    private MarchingCubesDensityScript densityCalculator;
 
-<<<<<<< HEAD
-    public float scale, offset, yheight;
-
-    public GameObject chunkPrefab;
-
-=======
->>>>>>> parent of de138c1... Optimized a bit by turning classes into structs
-    // Start is called before the first frame update
-    void Start()
-    {
-        onValidate = false;
-        Destroy(GetComponent<MarchingCubesChunk>());
-        Destroy(GetComponent<MeshFilter>());
-        Destroy(GetComponent<MeshRenderer>());
-        chunks = new MarchingCubesChunk[worldSize.x, worldSize.y, worldSize.z];
-        for (int x = 0; x < worldSize.x; x++)
-        {
-            for (int y = 0; y < worldSize.y; y++)
-            {
-                for (int z = 0; z < worldSize.z; z++)
-                {
-                    chunks[x, y, z] = null;
-                }
-            }
-        }
-<<<<<<< HEAD
-        foreach (var cameras in GameObject.FindObjectsOfType<MarchingCubesCameraScript>())
-        {
-            cameras.canGenerateChunks = true;
-        }
-
-        InitMarchingPoints();
-    }
-    private void InitMarchingPoints() 
-    {
-        if(marchingPoints == null || marchingPoints.Length != size) 
-        {
-            //Set points where the marching cube is going to march through
-            marchingPoints = new Vector3[size * size * size];
-            for (int x = 0, i = 0; x < size; x++)
-            {
-                for (int y = 0; y < size; y++)
-                {
-                    for (int z = 0; z < size; z++, i++)
-                    {
-                        marchingPoints[i] = new Vector3(x, y, z) * cubeSize;
-                    }
-                }
-            }
-        }
-=======
->>>>>>> parent of de138c1... Optimized a bit by turning classes into structs
-    }
-
-    // Update is called once per frame
-    void Update()
-    {
-
-    }
-    //Marches the cube in a x*x*x grid and generates a mesh out of it
-    public Mesh MarchCube(Vector3 position)
-    {
-<<<<<<< HEAD
-        MarchedCubeMeshData meshData;//Variable that will be helpful for storing and moving mesh data
-=======
-        Stopwatch stopwatch = new Stopwatch();
-        stopwatch.Start();
-        MeshData meshData;//Variable that will be helpful for storing and moving mesh data
->>>>>>> parent of de138c1... Optimized a bit by turning classes into structs
-        meshData.vertices = new List<Vector3>();
-        meshData.triangles = new List<int>();
-        //Init of the MarchedCube class
-        if (marchedCube == null) marchedCube = new MarchedCube(cubeSize, threshold, densityCalculator);
-        marchedCube.SetParams(cubeSize, threshold, densityCalculator);
-
-        //Input and output meshes
-        Mesh mesh = new Mesh();
-        Mesh newmesh = new Mesh();
-
-        List<CombineInstance> meshes = new List<CombineInstance>();
-        CombineInstance instance = new CombineInstance();
-        instance.transform = transform.localToWorldMatrix;
-        int outcase;
-<<<<<<< HEAD
-        NativeArray<CombineInstance> meshInstances = new NativeArray<CombineInstance>(size * size * size, Allocator.TempJob);
-        NativeArray<Vector3> marchingPointsNative = new NativeArray<Vector3>(marchingPoints, Allocator.TempJob);
-        NativeArray<MarchedCubeCorner> corners = new NativeArray<MarchedCubeCorner>(8, Allocator.TempJob);
-        NativeArray<MarchedCubeEdge> edges = new NativeArray<MarchedCubeEdge>(8, Allocator.TempJob);
-        //Init Job
-        MarchingCubesMarchJob marchJob = new MarchingCubesMarchJob();
-        marchJob.chunkPosition = position;
-        marchJob.positions = marchingPointsNative;
-        marchJob.interpolation = interpolation;
-        marchJob.cubeSize = cubeSize;
-        marchJob.threshold = threshold;
-        marchJob.outputMeshes = meshInstances;
-        marchJob.corners = corners;
-        marchJob.edges = edges;
-        //Density function parameters
-        marchJob.scale = scale;
-        marchJob.offset = offset;
-        marchJob.yheight = yheight;
-
-        marchJob.Run(size * size * size);
-
-        JobHandle jobHandle = marchJob.Schedule(size * size * size, 64);
-
-        jobHandle.Complete();
-
-
-=======
-        for (int x = 0; x < size; x++)
-        {
-            for (int z = 0; z < size; z++)
-            {
-                for (int y = 0; y < size; y++)
-                {
-                    outcase = marchedCube.MarchCube((new Vector3(x, y, z) * cubeSize) + position);//Get density points at this location
-                    meshData = GenerateMesh(outcase, cubeSize, position);//Create a small mesh section out of the density points
-                    //Update current mesh
-                    newmesh = new Mesh();
-                    newmesh.vertices = meshData.vertices.ToArray();
-                    newmesh.triangles = meshData.triangles.ToArray();
->>>>>>> parent of de138c1... Optimized a bit by turning classes into structs
-
-        //Create final mesh for this chunk
-        meshes = meshInstances.ToList();
-        mesh.CombineMeshes(meshes.ToArray(), true);
-        if (mergeVertices) AutoWeld(mesh, mergeDistance);
-        mesh.Optimize();
-        mesh.RecalculateNormals();
-        mesh.RecalculateBounds();
-<<<<<<< HEAD
-
-        meshInstances.Dispose();
-        marchingPointsNative.Dispose();
-        corners.Dispose();
-        edges.Dispose();
-
-=======
-        stopwatch.Stop();
-        //UnityEngine.Debug.Log(stopwatch.ElapsedMilliseconds / 1000f);
->>>>>>> parent of de138c1... Optimized a bit by turning classes into structs
-        return mesh;
-    }
-    //Merges vertices that are close to each other https://answers.unity.com/questions/1382854/welding-vertices-at-runtime.html and from https://answers.unity.com/questions/228841/dynamically-combine-verticies-that-share-the-same.html
-    public static Mesh WeldVertices(Mesh aMesh, float aMaxDelta = 0.01f)
-    {
-        var verts = aMesh.vertices;
-        Dictionary<Vector3, int> duplicateHashTable = new Dictionary<Vector3, int>();
-        List<int> newVerts = new List<int>();
-        int[] map = new int[verts.Length];
-
-        //https://answers.unity.com/questions/1382854/welding-vertices-at-runtime.html
-        //create mapping and find duplicates, dictionaries are like hashtables, mean fast
-        for (int i = 0; i < verts.Length; i++)
-        {
-            if (!duplicateHashTable.ContainsKey(verts[i]))
-            {
-                duplicateHashTable.Add(verts[i], newVerts.Count);
-                map[i] = newVerts.Count;
-                newVerts.Add(i);
-            }
-            else
-            {
-                map[i] = duplicateHashTable[verts[i]];
-            }
-        }
-
-        // create new vertices
-        var verts2 = new Vector3[newVerts.Count];
-        for (int i = 0; i < newVerts.Count; i++)
-        {
-            int a = newVerts[i];
-            verts2[i] = verts[a];
-        }
-        // map the triangle to the new vertices
-        var tris = aMesh.triangles;
-        for (int i = 0; i < tris.Length; i++)
-        {
-            tris[i] = map[tris[i]];
-        }
-        aMesh.triangles = tris;
-        aMesh.vertices = verts2;
-
-        return aMesh;
-    }
-    //Merge vertices that are close to each other https://answers.unity.com/questions/228841/dynamically-combine-verticies-that-share-the-same.html
-    private void AutoWeld(Mesh mesh, float threshold)
-    {
-        Vector3[] verts = mesh.vertices;
-
-        // Build new vertex buffer and remove "duplicate" verticies
-        // that are within the given threshold.
-        List<Vector3> newVerts = new List<Vector3>();
-
-        int k = 0;
-
-        foreach (Vector3 vert in verts)
-        {
-            // Has vertex already been added to newVerts list?
-            foreach (Vector3 newVert in newVerts)
-                if (Vector3.Distance(newVert, vert) <= threshold)
-                    goto skipToNext;
-
-            // Accept new vertex!
-            newVerts.Add(vert);
-
-            skipToNext:;
-            ++k;
-        }
-
-        // Rebuild triangles using new verticies
-        int[] tris = mesh.triangles;
-        for (int i = 0; i < tris.Length; ++i)
-        {
-            // Find new vertex point from buffer
-            for (int j = 0; j < newVerts.Count; ++j)
-            {
-                if (Vector3.Distance(newVerts[j], verts[tris[i]]) <= threshold)
-                {
-                    tris[i] = j;
-                    break;
-                }
-            }
-        }
-
-        // Update mesh!
-        mesh.Clear();
-        mesh.vertices = newVerts.ToArray();
-        mesh.triangles = tris;
-    }
-<<<<<<< HEAD
-    
-=======
-    //Generate mesh out of the triangulation table and the marchedcube data
-    private MeshData GenerateMesh(int outcase, float cubeSize, Vector3 offsetpos)
-    {
-        List<int> triangles = new List<int>();
-        List<Vector3> vertices = new List<Vector3>();
-        int currenttriindex;
-        for (int i = 0; i < 16; i++)
-        {
-            currenttriindex = TriangulationTable.triangulation[outcase, i];
-            if (currenttriindex != -1)
-            {
-                triangles.Add(currenttriindex);//Make triangle face
-            }
-        }
-        for (int i = 0; i < 12; i++)
-        {
-            if (triangles.Contains(i))
-            {
-                vertices.Add((marchedCube.GetEdgePoint(i, interpolation) - offsetpos));//Add vertex at correct position
-            }
-            else
-            {
-                vertices.Add(Vector3.zero);//We dont need to make this unused vertex compute its position
-            }
-        }
-        triangles.Reverse();//Invert the normals of the faces
-        MeshData mesh = new MeshData();
-        mesh.vertices = vertices;
-        mesh.triangles = triangles;
-        return mesh;
-    }
->>>>>>> parent of de138c1... Optimized a bit by turning classes into structs
-    //Generates all the chunks of the terrain
-    public void GenerateChunks() 
-    {
-        if (chunks == null || chunks.GetLength(0) != worldSize.x || chunks.GetLength(1) != worldSize.y || chunks.GetLength(2) != worldSize.z) chunks = new MarchingCubesChunk[worldSize.x, worldSize.y, worldSize.z];
-        chunks[0, 0, 0] = GetComponent<MarchingCubesChunk>();
-        for (int x = 0; x < worldSize.x; x++)
-        {
-            for (int y = 0; y < worldSize.y; y++)
-            {
-                for (int z = 0; z < worldSize.z; z++)
-                {
-                    GenerateChunk(x, y, z, true);
-                }
-            }
-        }
-    }
-    //Generate a single chunk
-    public void GenerateChunk(int x, int y, int z, bool recalculateChunks) 
-    {
-        if (x < 0 || y < 0 || z < 0) return;
-        if (x >= chunks.GetLength(0) || y >= chunks.GetLength(1) || z >= chunks.GetLength(2)) return;
-        Vector3 chunkPos = TransformCoordinatesChunkToWorld(x, y, z);
-        if (chunks[x, y, z] == null)//Generate new chunks if they dont exist yet
-        {
-            if(densityCalculator.Density(chunkPos) < chunkThreshold) return;//This hcunk is not filled with terrain
-            
-            GameObject chunk = new GameObject();
-            chunk.transform.position = chunkPos;
-            chunk.name = x + "-" + y + "-" + z;
-<<<<<<< HEAD
-            MarchingCubesChunk chunkScript = chunk.GetComponent<MarchingCubesChunk>();
-            chunkScript.StartChunk(this, x, y, z);
-            //if(densityCalculator.Density(chunkPos) < chunkThreshold) return;//This chunk is not filled with terrain
-            //chunkScript.UpdateMesh(MarchCube(chunkPos));
-
-=======
-            chunk.transform.parent = transform;
-            MarchingCubesChunk chunkScript = chunk.AddComponent<MarchingCubesChunk>();
-            chunkScript.StartChunk(this);
-            chunkScript.UpdateMesh(MarchCube(chunkPos));
-            chunkScript.x = x; chunkScript.y = y; chunkScript.z = z;
->>>>>>> parent of de138c1... Optimized a bit by turning classes into structs
-            chunks[x, y, z] = chunkScript;
-        }
-        else if(recalculateChunks)
-        {
-            MarchingCubesChunk chunkScript = chunks[x, y, z];
-            chunkScript.transform.position = chunkPos;
-            chunkScript.UpdateMesh(MarchCube(chunkPos));
-        }
-    }
-    //Generate a single chunk using world coordinates
-    public void GenerateChunk(Vector3 pos, bool recalculateChunks)
-    {
-        Vector3Int chunkCoords = TransformCoordinatesWorldToChunk(pos);
-        GenerateChunk(chunkCoords.x, chunkCoords.y, chunkCoords.z, recalculateChunks);
-    }
-    //Transform chunk coordinates into world coordinates
-    public Vector3 TransformCoordinatesChunkToWorld(int x, int y, int z) 
-    {
-        return new Vector3(x * size * cubeSize, y * size * cubeSize, z * size * cubeSize);
-    }
-    //Transform chunk coordinates into world coordinates with vector3int
-    public Vector3 TransformCoordinatesChunkToWorld(Vector3Int pos)
-    {
-        return new Vector3(pos.x * size * cubeSize, pos.y * size * cubeSize, pos.z * size * cubeSize);
-    }
-    public Vector3Int TransformCoordinatesWorldToChunk(Vector3 pos) 
-    {
-        return new Vector3Int(Mathf.RoundToInt(pos.x / size / cubeSize), Mathf.RoundToInt(pos.y / size / cubeSize), Mathf.RoundToInt(pos.z / size / cubeSize));
-    }
-    //Set chunk visibility from world coordinates
-    public void SetChunkVisibility(Vector3 pos, bool isVisible)
-    {
-        MarchingCubesChunk chunk = GetChunk(pos);
-        if (isVisible) chunk.OnShowChunk();
-        else chunk.OnHideChunk();
-    }
-    //Set chunk visibility
-    public void SetChunkVisibility(int x, int y, int z, bool isVisible)
-    {
-        MarchingCubesChunk chunk = GetChunk(x, y, z);
-        if (chunk == null) return;
-        if (isVisible) chunk.OnShowChunk();
-        else chunk.OnHideChunk();
-    }
-    //Set chunk visibility with already given chunk
-    public void SetChunkVisibility(MarchingCubesChunk chunk, bool isVisible)
-    {
-        if (chunk == null) return;
-        if (isVisible) chunk.OnShowChunk();
-        else chunk.OnHideChunk();
-    }
-    //Set chunk visibilty for all chunks
-    public void SetChunksVisibility(bool isVisible) 
-    {
-        foreach (var chunk in chunks)
-        {
-            if (chunk == null) continue;
-            if (isVisible) chunk.OnShowChunk();
-            else chunk.OnHideChunk();
-        }
-    }
-    //Get chunk (Returns null if chunk is outside map bounds)
-    public MarchingCubesChunk GetChunk(Vector3 pos) 
-    {
-        int x, y, z;
-        x = Mathf.RoundToInt(pos.x / size / cubeSize);
-        y = Mathf.RoundToInt(pos.y / size / cubeSize);
-        z = Mathf.RoundToInt(pos.z / size / cubeSize);
-        if (x < 0 || y < 0 || z < 0) return null;
-        if (x >= chunks.GetLength(0) || y >= chunks.GetLength(1) || z >= chunks.GetLength(2)) return null;
-        return chunks[x, y, z];
-    }
-    //Get chunk (Returns null if chunk is outside map bounds)
-    public MarchingCubesChunk GetChunk(int x, int y, int z)
-    {
-        if (x < 0 || y < 0 || z < 0) return null; 
-        if (x >= chunks.GetLength(0) || y >= chunks.GetLength(1) || z >= chunks.GetLength(2)) return null; 
-        return chunks[x, y, z];
-    }
-    //Debug stuff
-    private void OnValidate()
-    {
-        OnValidatePublic();
-    }
-    public void OnValidatePublic() //Make method so when we change other script's data the mesh also gets updated
-    {
-        if (onValidate)
-        {
-<<<<<<< HEAD
-            InitMarchingPoints();
-            GetComponent<MarchingCubesChunk>().StartChunk(this, 0, 0, 0);
-=======
-            if(densityCalculator == null) densityCalculator = GetComponent<MarchingCubesDensityScript>();
-            GetComponent<MarchingCubesChunk>().StartChunk(this);
->>>>>>> parent of de138c1... Optimized a bit by turning classes into structs
-            GetComponent<MarchingCubesChunk>().UpdateMesh(MarchCube(transform.position));
-        }
-    }
-    private void OnDrawGizmos()
-    {
-        Gizmos.DrawWireCube(((new Vector3(size, size, size)) / 2 * cubeSize), (new Vector3(size, size, size)) * cubeSize);        
-    }
-}
-<<<<<<< HEAD
-=======
-//Triangulation table from : http://paulbourke.net/geometry/polygonise/
-public static class TriangulationTable 
-{
-    public static int[,] triangulation = new int[256,16]{
+    public static int[,] triangulation = new int[256, 16]{
     {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1 },
     { 0, 8, 3, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1 },
     { 0, 1, 9, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1 },
@@ -709,11 +286,324 @@ public static class TriangulationTable
     { 0, 9, 1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1 },
     { 0, 3, 8, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1 },
     {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1 }
-    };
+    };//Triangulation table
+
+    public GameObject chunkPrefab;
+
+    // Start is called before the first frame update
+    void Start()
+    {
+        onValidate = false;
+        if (densityCalculator == null) densityCalculator = GetComponent<MarchingCubesDensityScript>();
+        if (marchedCube == null) marchedCube = new MarchedCube(cubeSize, threshold, densityCalculator);
+        marchedCube.SetParams(cubeSize, threshold, densityCalculator);
+        Destroy(GetComponent<MarchingCubesChunk>());
+        Destroy(GetComponent<MeshFilter>());
+        Destroy(GetComponent<MeshRenderer>());
+        chunks = new MarchingCubesChunk[worldSize.x, worldSize.y, worldSize.z];
+        for (int x = 0; x < worldSize.x; x++)
+        {
+            for (int y = 0; y < worldSize.y; y++)
+            {
+                for (int z = 0; z < worldSize.z; z++)
+                {
+                    chunks[x, y, z] = null;
+                }
+            }
+        }
+        foreach (var cameras in GameObject.FindObjectsOfType<MarchingCubesCameraScript>())
+        {
+            cameras.canGenerateChunks = true;
+        }
+    }
+
+    // Update is called once per frame
+    void Update()
+    {
+
+    }
+    struct MeshData //Information about the mesh
+    {
+        public List<Vector3> vertices;
+        public List<int> triangles;
+    }
+
+    //Marches the cube in a x*x*x grid and generates a mesh out of it
+    public Mesh MarchCube(Vector3 position)
+    {
+
+        MeshData meshData;//Variable that will be helpful for storing and moving mesh data
+        meshData.vertices = new List<Vector3>();
+        meshData.triangles = new List<int>();
+        //Init of the MarchedCube class
+
+        //Input and output meshes
+        Mesh mesh = new Mesh();
+        Mesh newmesh;
+
+        List<CombineInstance> meshes = new List<CombineInstance>();
+        CombineInstance instance = new CombineInstance();
+        instance.transform = transform.localToWorldMatrix;
+        int outcase;
+        for (int x = 0; x < size; x++)
+        {
+            for (int z = 0; z < size; z++)
+            {
+                for (int y = 0; y < size; y++)
+                {
+                    outcase = marchedCube.MarchCube((new Vector3(x, y, z) * cubeSize) + position);//Get density points at this location
+                    meshData = GenerateMesh(outcase, cubeSize, position);//Create a small mesh section out of the density points
+                    //Update current mesh
+                    newmesh = new Mesh
+                    {
+                        vertices = meshData.vertices.ToArray(),
+                        triangles = meshData.triangles.ToArray()
+                    };
+
+                    //Update combine instance and add it to the list                   
+                    instance.mesh = newmesh;
+                    meshes.Add(instance);
+                }
+            }
+        }
+        //Create final mesh for this chunk
+        mesh.CombineMeshes(meshes.ToArray(), true);
+        if (mergeVertices) AutoWeld(mesh, mergeDistance);
+        mesh.Optimize();
+        mesh.RecalculateNormals();
+        mesh.RecalculateBounds();
+        return mesh;
+    }
+    //Merge vertices that are close to each other https://answers.unity.com/questions/228841/dynamically-combine-verticies-that-share-the-same.html
+    private void AutoWeld(Mesh mesh, float threshold)
+    {
+        Vector3[] verts = mesh.vertices;
+
+        // Build new vertex buffer and remove "duplicate" verticies
+        // that are within the given threshold.
+        List<Vector3> newVerts = new List<Vector3>();
+
+        int k = 0;
+
+        foreach (Vector3 vert in verts)
+        {
+            // Has vertex already been added to newVerts list?
+            foreach (Vector3 newVert in newVerts)
+                if (Vector3.Distance(newVert, vert) <= threshold)
+                    goto skipToNext;
+
+            // Accept new vertex!
+            newVerts.Add(vert);
+
+            skipToNext:;
+            ++k;
+        }
+
+        // Rebuild triangles using new verticies
+        int[] tris = mesh.triangles;
+        for (int i = 0; i < tris.Length; ++i)
+        {
+            // Find new vertex point from buffer
+            for (int j = 0; j < newVerts.Count; ++j)
+            {
+                if (Vector3.Distance(newVerts[j], verts[tris[i]]) <= threshold)
+                {
+                    tris[i] = j;
+                    break;
+                }
+            }
+        }
+
+        // Update mesh!
+        mesh.Clear();
+        mesh.vertices = newVerts.ToArray();
+        mesh.triangles = tris;
+    }
+    //Generate mesh out of the triangulation table and the marchedcube data
+    private MeshData GenerateMesh(int outcase, float cubeSize, Vector3 offsetpos)
+    {
+        List<int> triangles = new List<int>();
+        List<Vector3> vertices = new List<Vector3>();
+        int currenttriindex;
+        for (int i = 0; i < 16; i++)
+        {
+            currenttriindex = triangulation[outcase, i];
+            if (currenttriindex != -1)
+            {
+                triangles.Add(currenttriindex);//Make triangle face
+            }
+        }
+        for (int i = 0; i < 12; i++)
+        {
+            if (triangles.Contains(i))
+            {
+                vertices.Add((marchedCube.GetEdgePoint(i, interpolation) - offsetpos));//Add vertex at correct position
+            }
+            else
+            {
+                vertices.Add(Vector3.zero);//We dont need to make this unused vertex compute its position
+            }
+        }
+        triangles.Reverse();//Invert the normals of the faces
+        MeshData mesh = new MeshData();
+        mesh.vertices = vertices;
+        mesh.triangles = triangles;
+        return mesh;
+    }
+    //Generates all the chunks of the terrain
+    public void GenerateChunks() 
+    {
+        if (chunks == null || chunks.GetLength(0) != worldSize.x || chunks.GetLength(1) != worldSize.y || chunks.GetLength(2) != worldSize.z) chunks = new MarchingCubesChunk[worldSize.x, worldSize.y, worldSize.z];
+        chunks[0, 0, 0] = GetComponent<MarchingCubesChunk>();
+        for (int x = 0; x < worldSize.x; x++)
+        {
+            for (int y = 0; y < worldSize.y; y++)
+            {
+                for (int z = 0; z < worldSize.z; z++)
+                {
+                    GenerateChunk(x, y, z, true);
+                }
+            }
+        }
+    }
+    //Generate a single chunk
+    public void GenerateChunk(int x, int y, int z, bool recalculateChunks) 
+    {
+        if (x < 0 || y < 0 || z < 0) return;
+        if (x >= worldSize.x || y >= worldSize.y || z >= worldSize.z) return;
+        Vector3 chunkPos = TransformCoordinatesChunkToWorld(x, y, z);
+        if (chunks[x, y, z] == null)//Generate new chunks if they dont exist yet
+        {
+            
+            GameObject chunk = Instantiate(chunkPrefab, chunkPos, Quaternion.identity, transform);
+            chunk.name = x + "-" + y + "-" + z;
+            MarchingCubesChunk chunkScript = chunk.GetComponent<MarchingCubesChunk>();
+            chunkScript.StartChunk(this, x, y, z);
+            if(densityCalculator.Density(chunkPos) < chunkThreshold) return;//This chunk is not filled with terrain
+            //chunkScript.UpdateMesh(MarchCube(chunkPos));
+
+            chunks[x, y, z] = chunkScript;
+        }
+        else if(recalculateChunks)
+        {
+            MarchingCubesChunk chunkScript = chunks[x, y, z];
+            chunkScript.transform.position = chunkPos;
+            chunkScript.UpdateMesh(MarchCube(chunkPos));
+        }
+    }
+    //Generate a single chunk using world coordinates
+    public void GenerateChunk(Vector3 pos, bool recalculateChunks)
+    {
+        Vector3Int chunkCoords = TransformCoordinatesWorldToChunk(pos);
+        GenerateChunk(chunkCoords.x, chunkCoords.y, chunkCoords.z, recalculateChunks);
+    }
+    //Transform chunk coordinates into world coordinates
+    public Vector3 TransformCoordinatesChunkToWorld(int x, int y, int z) 
+    {
+        return new Vector3(x * size * cubeSize, y * size * cubeSize, z * size * cubeSize);
+    }
+    //Transform chunk coordinates into world coordinates with vector3int
+    public Vector3 TransformCoordinatesChunkToWorld(Vector3Int pos)
+    {
+        return new Vector3(pos.x * size * cubeSize, pos.y * size * cubeSize, pos.z * size * cubeSize);
+    }
+    public Vector3Int TransformCoordinatesWorldToChunk(Vector3 pos) 
+    {
+        return new Vector3Int(Mathf.RoundToInt(pos.x / size / cubeSize), Mathf.RoundToInt(pos.y / size / cubeSize), Mathf.RoundToInt(pos.z / size / cubeSize));
+    }
+    //Set chunk visibility from world coordinates
+    public void SetChunkVisibility(Vector3 pos, bool isVisible)
+    {
+        MarchingCubesChunk chunk = GetChunk(pos);
+        if (isVisible) chunk.OnShowChunk();
+        else chunk.OnHideChunk();
+    }
+    //Set chunk visibility
+    public void SetChunkVisibility(int x, int y, int z, bool isVisible)
+    {
+        MarchingCubesChunk chunk = GetChunk(x, y, z);
+        if (chunk == null) return;
+        if (isVisible) chunk.OnShowChunk();
+        else chunk.OnHideChunk();
+    }
+    //Set chunk visibility with already given chunk
+    public void SetChunkVisibility(MarchingCubesChunk chunk, bool isVisible)
+    {
+        if (chunk == null) return;
+        if (isVisible) chunk.OnShowChunk();
+        else chunk.OnHideChunk();
+    }
+    //Set chunk visibilty for all chunks
+    public void SetChunksVisibility(bool isVisible) 
+    {
+        foreach (var chunk in chunks)
+        {
+            if (chunk == null) continue;
+            if (isVisible) chunk.OnShowChunk();
+            else chunk.OnHideChunk();
+        }
+    }
+    //Get chunk (Returns null if chunk is outside map bounds)
+    public MarchingCubesChunk GetChunk(Vector3 pos) 
+    {
+        Vector3Int newpos = TransformCoordinatesWorldToChunk(pos);
+        int x, y, z;
+        x = newpos.x; y = newpos.y; z = newpos.z;
+        if (x < 0 || y < 0 || z < 0) return null;
+        if (x >= worldSize.x || y >= worldSize.y || z >= worldSize.z) return null;
+        return chunks[x, y, z];
+    }
+    //Get chunk (Returns null if chunk is outside map bounds)
+    public MarchingCubesChunk GetChunk(int x, int y, int z)
+    {
+        if (x < 0 || y < 0 || z < 0) return null; 
+        if (x >= worldSize.x || y >= worldSize.y || z >= worldSize.z) return null; 
+        return chunks[x, y, z];
+    }
+
+    //Debug stuff
+    private void OnValidate()
+    {
+        OnValidatePublic();
+    }
+    public void OnValidatePublic() //Make method so when we change other script's data the mesh also gets updated
+    {
+        if (onValidate)
+        {
+            if (densityCalculator == null) densityCalculator = GetComponent<MarchingCubesDensityScript>();
+            if (marchedCube == null) marchedCube = new MarchedCube(cubeSize, threshold, densityCalculator);
+            marchedCube.SetParams(cubeSize, threshold, densityCalculator);
+            GetComponent<MarchingCubesChunk>().StartChunk(this, 0, 0, 0);
+            GetComponent<MarchingCubesChunk>().UpdateMesh(MarchCube(transform.position));
+        }
+    }
+    private void OnDrawGizmos()
+    {
+        Gizmos.DrawWireCube(((new Vector3(size, size, size)) / 2 * cubeSize), (new Vector3(size, size, size)) * cubeSize);        
+    }
+}
+//Triangulation table from : http://paulbourke.net/geometry/polygonise/
+public static class TriangulationTable 
+{
+    
 }
 //The cube that we are going to march
 public class MarchedCube
 {
+    //Each 8 Corners of the cube
+    public struct MarchedCubeCorner
+    {
+        public bool bit;
+        public float density;
+        public Vector3 pos;
+    }
+    //Each 12 Edges of the cube
+    public struct MarchedCubeEdge
+    {
+        public Vector3 position;
+        public MarchedCubeCorner vertex0;
+        public MarchedCubeCorner vertex1;
+    }
     private float cubeSize;
     private float threshold;//If density is higher than this, there is terrain at that point
     public int outcase;
@@ -725,18 +615,14 @@ public class MarchedCube
         cubeSize = _cubeSize;
         threshold = _threshold;
         densityCalculator = _densityCalculator;
-
         corners = new MarchedCubeCorner[8];
-        for (int i = 0; i < 8; i++)
-        {
-            corners[i] = new MarchedCubeCorner();
-        }
         edges = new MarchedCubeEdge[12];
-        for (int i = 0; i < 12; i++)
-        {
-            edges[i] = new MarchedCubeEdge();
-        }
-        //Set correct corner points for edges
+
+
+    }
+    //Set correct corner points for edges
+    private void SetVerticesForEdges() 
+    {
         edges[0].vertex0 = corners[0]; edges[0].vertex1 = corners[1];
         edges[1].vertex0 = corners[1]; edges[1].vertex1 = corners[2];
         edges[2].vertex0 = corners[2]; edges[2].vertex1 = corners[3];
@@ -786,15 +672,16 @@ public class MarchedCube
         corners[4].pos = newpos + (new Vector3(0, 0, 1) * cubeSize);
         corners[5].pos = newpos + (new Vector3(0, 1, 1) * cubeSize);
         corners[6].pos = newpos + (new Vector3(1, 1, 1) * cubeSize);
-        corners[7].pos = newpos + (new Vector3(1, 0, 1) * cubeSize);       
+        corners[7].pos = newpos + (new Vector3(1, 0, 1) * cubeSize);
 
         for (int i = 0; i < corners.Length; i++)
         {
             corners[i].density = Density(corners[i].pos);
             corners[i].bit = corners[i].density < threshold;
             outcase += (corners[i].bit ? 1 : 0) * Mathf.RoundToInt(Mathf.Pow(2, i));
-        } 
+        }
 
+        SetVerticesForEdges();
         return outcase;
     }
     //How much terrain density at a current 3d point
@@ -803,18 +690,3 @@ public class MarchedCube
         return densityCalculator.Density(pos);
     }
 }
-//Each 8 Corners of the cube
-public class MarchedCubeCorner
-{
-    public bool bit;
-    public float density;
-    public Vector3 pos;
-}
-//Each 12 Edges of the cube
-public class MarchedCubeEdge 
-{
-    public Vector3 position;
-    public MarchedCubeCorner vertex0;
-    public MarchedCubeCorner vertex1;
-}
->>>>>>> parent of de138c1... Optimized a bit by turning classes into structs
