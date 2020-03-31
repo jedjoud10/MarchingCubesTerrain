@@ -283,24 +283,24 @@ public struct MarchingCubesMarchJob : IJobParallelFor
     { 0, 3, 8, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1 },
     {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1 }
     };//Triangulation table from : http://paulbourke.net/geometry/polygonise/
-    public NativeArray<MarchedCubeMeshData> outputMesh;//The output mesh data
+    public NativeArray<CombineInstance> outputMeshes;//The output mesh data
     public Vector3 chunkPosition;//The position of the current chunk
-    public Vector3[] positions;//All the points that the cube is going to march through
+    [ReadOnly]
+    public NativeArray<Vector3> positions;//All the points that the cube is going to march through
     private Vector3 position;//Position of the marched cube
     public bool interpolation;//Are we using interpolation
     public float cubeSize;
     public float threshold;//If density is higher than this, there is terrain at that point
     private int outcase;
-    private MarchedCubeCorner[] corners;
-    private MarchedCubeEdge[] edges;
+    public NativeArray<MarchedCubeCorner> corners;
+    public NativeArray<MarchedCubeEdge> edges;
+    public Matrix4x4 transformMatrix;
 
     public float scale, offset, yheight;
        
     public void Execute(int index)
     {
         outcase = 0;
-        corners = new MarchedCubeCorner[8];
-        edges = new MarchedCubeEdge[12];
         position = positions[index] + chunkPosition;
         //Get 8 corner pieces
         //Set corners new position
@@ -324,7 +324,12 @@ public struct MarchingCubesMarchJob : IJobParallelFor
         corners[6].density = Density(corners[6].pos); outcase += (corners[6].density < threshold ? 1 : 0) * Mathf.RoundToInt(Mathf.Pow(2, 6));
         corners[7].density = Density(corners[7].pos); outcase += (corners[7].density < threshold ? 1 : 0) * Mathf.RoundToInt(Mathf.Pow(2, 7));
         //Return single marched cube mesh
-        outputMesh[index] = GenerateMesh(outcase);
+        CombineInstance mesh = new CombineInstance();
+        MarchedCubeMeshData data = GenerateMesh(outcase);
+        mesh.mesh.vertices = data.vertices.ToArray();
+        mesh.mesh.triangles = data.triangles.ToArray();
+        mesh.transform = transformMatrix;
+        outputMeshes[index] = mesh;
     }
 
     #region Noise and Density functions

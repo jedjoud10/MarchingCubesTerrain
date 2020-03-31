@@ -1,6 +1,7 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using Unity.Collections;
 using UnityEditor;
 using System.Linq;
 using System.Diagnostics;
@@ -30,7 +31,7 @@ public class MarchingCubesTerrainScript : MonoBehaviour
     private MarchingCubesChunk[,,] chunks;
     private Vector3[] marchingPoints;//3D points where the marching cube is going to march through (Only in one single chunk)
 
-    
+    public float scale, offset, yheight;
 
     public GameObject chunkPrefab;
 
@@ -92,22 +93,36 @@ public class MarchingCubesTerrainScript : MonoBehaviour
         CombineInstance instance = new CombineInstance();
         instance.transform = transform.localToWorldMatrix;
         int outcase;
+        NativeArray<CombineInstance> meshInstances = new NativeArray<CombineInstance>(size * size * size, Allocator.Temp);
         //Init Job
         MarchingCubesMarchJob marchJob = new MarchingCubesMarchJob();
         marchJob.chunkPosition = position;
-        marchJob.positions = marchingPoints;
+        marchJob.positions = new NativeArray<Vector3>(marchingPoints, Allocator.Temp);
         marchJob.interpolation = interpolation;
         marchJob.cubeSize = cubeSize;
         marchJob.threshold = threshold;
+        marchJob.outputMeshes = meshInstances;
+        //Density function parameters
+        marchJob.scale = scale;
+        marchJob.offset = offset;
+        marchJob.yheight = yheight;
+
+        marchJob.Run(size * size * size);
+
+        JobHandle jobHandle = marchJob.Schedule(size * size * size, 64);
+
+        jobHandle.Complete();
 
 
 
         //Create final mesh for this chunk
+        meshes = meshInstances.ToList();
         mesh.CombineMeshes(meshes.ToArray(), true);
         if (mergeVertices) AutoWeld(mesh, mergeDistance);
         mesh.Optimize();
         mesh.RecalculateNormals();
         mesh.RecalculateBounds();
+        meshInstances.Dispose();
         return mesh;
     }
     //Merge vertices that are close to each other https://answers.unity.com/questions/228841/dynamically-combine-verticies-that-share-the-same.html
