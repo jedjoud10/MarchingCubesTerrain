@@ -7,16 +7,15 @@ using UnityEngine;
 
 public class MarchingCubesChunk : MonoBehaviour
 {
-    private MeshRenderer chunkRenderer;
+    private MeshRenderer renderer;
     [HideInInspector]
     public int x, y, z;
     //Starts generating this chunk
-    public void StartChunk(MarchingCubesTerrainScript terrain, int _x, int _y, int _z) 
+    public void StartChunk(MarchingCubesTerrainScript terrain) 
     {
-        chunkRenderer = GetComponent<MeshRenderer>();
-        chunkRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.TwoSided;
-        chunkRenderer.material = terrain.material;
-        x = _x; y = _y; z = _z;
+        renderer = GetComponent<MeshRenderer>();
+        renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.TwoSided;
+        renderer.material = terrain.material;
     }
     //Update current mesh
     public void UpdateMesh(Mesh _mesh) 
@@ -27,13 +26,13 @@ public class MarchingCubesChunk : MonoBehaviour
     //Hide chunk
     public void OnHideChunk() 
     {
-        if (chunkRenderer == null) return;
-        chunkRenderer.enabled = false;
+        if (renderer == null) return;
+        renderer.enabled = false;
     }
     //Show chunk
     public void OnShowChunk()
     {
-        if (chunkRenderer == null) return;
-        chunkRenderer.enabled = true;
+        if (renderer == null) return;
+        renderer.enabled = true;
     }
 }

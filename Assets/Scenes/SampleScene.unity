@@ -122,6 +122,7 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 0}
+<<<<<<< HEAD
 --- !u!1 &705507993
 GameObject:
   m_ObjectHideFlags: 0
@@ -327,6 +328,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
 --- !u!43 &1090006703
+=======
+--- !u!43 &90854787
+>>>>>>> parent of de138c1... Optimized a bit by turning classes into structs
 Mesh:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -343,8 +347,13 @@ Mesh:
     firstVertex: 0
     vertexCount: 0
     localAABB:
+<<<<<<< HEAD
       m_Center: {x: 0, y: 0, z: 0}
       m_Extent: {x: 0, y: 0, z: 0}
+=======
+      m_Center: {x: 0.07932708, y: 0.0177006, z: 4.9360247}
+      m_Extent: {x: 0.07932708, y: 0.0177006, z: 0.07733488}
+>>>>>>> parent of de138c1... Optimized a bit by turning classes into structs
   m_Shapes:
     vertices: []
     shapes: []
@@ -422,8 +431,13 @@ Mesh:
       offset: 0
       format: 0
       dimension: 0
+<<<<<<< HEAD
     m_DataSize: 0
     _typelessdata: 
+=======
+    m_DataSize: 72
+    _typelessdata: 0000000000000000637a9b40e51067be844172bfb6046d3e3c76223e00000000716da040e51067be844172bfb6046d3e00000000d900113d0c1ca040e51067be844172bfb6046d3e
+>>>>>>> parent of de138c1... Optimized a bit by turning classes into structs
   m_CompressedMesh:
     m_Vertices:
       m_NumItems: 0
@@ -477,8 +491,13 @@ Mesh:
       m_BitSize: 0
     m_UVInfo: 0
   m_LocalAABB:
+<<<<<<< HEAD
     m_Center: {x: 0, y: 0, z: 0}
     m_Extent: {x: 0, y: 0, z: 0}
+=======
+    m_Center: {x: 0.07932708, y: 0.0177006, z: 4.9360247}
+    m_Extent: {x: 0.07932708, y: 0.0177006, z: 0.07733488}
+>>>>>>> parent of de138c1... Optimized a bit by turning classes into structs
   m_MeshUsageFlags: 0
   m_BakedConvexCollisionMesh: 
   m_BakedTriangleCollisionMesh: 
@@ -666,10 +685,23 @@ MeshFilter:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
+<<<<<<< HEAD
   m_GameObject: {fileID: 1440386565}
   m_Mesh: {fileID: 10210, guid: 0000000000000000e000000000000000, type: 0}
 --- !u!4 &1440386569
 Transform:
+=======
+  m_GameObject: {fileID: 963194225}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e7ae53a6a102de04c9ebd8013052066e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  chunkDistance: 6
+  keepChunksLoaded: 1
+--- !u!114 &963194230
+MonoBehaviour:
+>>>>>>> parent of de138c1... Optimized a bit by turning classes into structs
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
@@ -771,6 +803,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 64ae932c24cec464f96610ca6069f5df, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+<<<<<<< HEAD
   threshold: -0.07
   chunkThreshold: 0
   cubeSize: 10
@@ -786,6 +819,18 @@ MonoBehaviour:
   yheight: 0
   chunkPrefab: {fileID: 5154164806003860041, guid: b6fe6ed393e3d1b4f8562f2b34fe7aa6,
     type: 3}
+=======
+  threshold: 0
+  chunkThreshold: -8
+  cubeSize: 1
+  onValidate: 1
+  interpolation: 1
+  mergeVertices: 1
+  mergeDistance: 0.0005
+  size: 5
+  worldSize: {x: 30, y: 5, z: 30}
+  material: {fileID: 2100000, guid: 9d4dfa35e75237349b49150d17598d3d, type: 2}
+>>>>>>> parent of de138c1... Optimized a bit by turning classes into structs
 --- !u!4 &1600802615
 Transform:
   m_ObjectHideFlags: 0
@@ -807,7 +852,11 @@ MeshFilter:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1600802611}
+<<<<<<< HEAD
   m_Mesh: {fileID: 1090006703}
+=======
+  m_Mesh: {fileID: 90854787}
+>>>>>>> parent of de138c1... Optimized a bit by turning classes into structs
 --- !u!64 &1600802617
 MeshCollider:
   m_ObjectHideFlags: 0
@@ -821,4 +870,27 @@ MeshCollider:
   serializedVersion: 3
   m_Convex: 0
   m_CookingOptions: 30
+<<<<<<< HEAD
   m_Mesh: {fileID: 1090006703}
+=======
+  m_Mesh: {fileID: 90854787}
+--- !u!114 &1600802618
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1600802611}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 342ed6766132daf44a4d7c5f3d8c3605, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  scale: 0.5
+  noiseScale: 5
+  noiseScale2: 9
+  height: 5
+  height2: -15
+  height3: 1
+  offset: 6.86
+>>>>>>> parent of de138c1... Optimized a bit by turning classes into structs
