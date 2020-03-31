@@ -58,15 +58,22 @@ public class MarchingCubesTerrainScript : MonoBehaviour
             cameras.canGenerateChunks = true;
         }
 
-        //Set points where the marching cube is going to march through
-        marchingPoints = new Vector3[size * size * size];
-        for (int x = 0, i = 0; x < size; x++)
+        InitMarchingPoints();
+    }
+    private void InitMarchingPoints() 
+    {
+        if(marchingPoints == null || marchingPoints.Length != size) 
         {
-            for (int y = 0; y < size; y++)
+            //Set points where the marching cube is going to march through
+            marchingPoints = new Vector3[size * size * size];
+            for (int x = 0, i = 0; x < size; x++)
             {
-                for (int z = 0; z < size; z++, i++)
+                for (int y = 0; y < size; y++)
                 {
-                    marchingPoints[i] = new Vector3(x, y, z) * cubeSize;
+                    for (int z = 0; z < size; z++, i++)
+                    {
+                        marchingPoints[i] = new Vector3(x, y, z) * cubeSize;
+                    }
                 }
             }
         }
@@ -93,15 +100,20 @@ public class MarchingCubesTerrainScript : MonoBehaviour
         CombineInstance instance = new CombineInstance();
         instance.transform = transform.localToWorldMatrix;
         int outcase;
-        NativeArray<CombineInstance> meshInstances = new NativeArray<CombineInstance>(size * size * size, Allocator.Temp);
+        NativeArray<CombineInstance> meshInstances = new NativeArray<CombineInstance>(size * size * size, Allocator.TempJob);
+        NativeArray<Vector3> marchingPointsNative = new NativeArray<Vector3>(marchingPoints, Allocator.TempJob);
+        NativeArray<MarchedCubeCorner> corners = new NativeArray<MarchedCubeCorner>(8, Allocator.TempJob);
+        NativeArray<MarchedCubeEdge> edges = new NativeArray<MarchedCubeEdge>(8, Allocator.TempJob);
         //Init Job
         MarchingCubesMarchJob marchJob = new MarchingCubesMarchJob();
         marchJob.chunkPosition = position;
-        marchJob.positions = new NativeArray<Vector3>(marchingPoints, Allocator.Temp);
+        marchJob.positions = marchingPointsNative;
         marchJob.interpolation = interpolation;
         marchJob.cubeSize = cubeSize;
         marchJob.threshold = threshold;
         marchJob.outputMeshes = meshInstances;
+        marchJob.corners = corners;
+        marchJob.edges = edges;
         //Density function parameters
         marchJob.scale = scale;
         marchJob.offset = offset;
@@ -122,7 +134,12 @@ public class MarchingCubesTerrainScript : MonoBehaviour
         mesh.Optimize();
         mesh.RecalculateNormals();
         mesh.RecalculateBounds();
+
         meshInstances.Dispose();
+        marchingPointsNative.Dispose();
+        corners.Dispose();
+        edges.Dispose();
+
         return mesh;
     }
     //Merge vertices that are close to each other https://answers.unity.com/questions/228841/dynamically-combine-verticies-that-share-the-same.html
@@ -290,6 +307,7 @@ public class MarchingCubesTerrainScript : MonoBehaviour
     {
         if (onValidate)
         {
+            InitMarchingPoints();
             GetComponent<MarchingCubesChunk>().StartChunk(this, 0, 0, 0);
             GetComponent<MarchingCubesChunk>().UpdateMesh(MarchCube(transform.position));
         }

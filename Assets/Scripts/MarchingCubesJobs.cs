@@ -11,9 +11,10 @@ public struct MarchedCubeMeshData //Information about the mesh
 //Each 8 Corners of the cube
 public struct MarchedCubeCorner
 {
-    public bool bit;
     public float density;
     public Vector3 pos;
+    public void SetPos(Vector3 _pos) { pos = _pos; }
+    public void SetDensity(float _density) { density = _density; }
 }
 //Each 12 Edges of the cube
 public struct MarchedCubeEdge
@@ -21,6 +22,9 @@ public struct MarchedCubeEdge
     public Vector3 position;
     public MarchedCubeCorner vertex0;
     public MarchedCubeCorner vertex1;
+    public void SetPosition(Vector3 _position) { position = _position; }
+    public void SetVertex0(MarchedCubeCorner _vertex0) { vertex0 = _vertex0; }
+    public void SetVertex1(MarchedCubeCorner _vertex1) { vertex1 = _vertex1; }
 }
 //Called on each "center-point" in the marched cube bound
 public struct MarchingCubesMarchJob : IJobParallelFor
@@ -304,25 +308,34 @@ public struct MarchingCubesMarchJob : IJobParallelFor
         position = positions[index] + chunkPosition;
         //Get 8 corner pieces
         //Set corners new position
-        corners[0].pos = position;
-        corners[1].pos = position + (new Vector3(0, 1, 0) * cubeSize);
-        corners[2].pos = position + (new Vector3(1, 1, 0) * cubeSize);
-        corners[3].pos = position + (new Vector3(1, 0, 0) * cubeSize);
-        corners[4].pos = position + (new Vector3(0, 0, 1) * cubeSize);
-        corners[5].pos = position + (new Vector3(0, 1, 1) * cubeSize);
-        corners[6].pos = position + (new Vector3(1, 1, 1) * cubeSize);
-        corners[7].pos = position + (new Vector3(1, 0, 1) * cubeSize);
+        corners[0].SetPos(position);
+        corners[1].SetPos(position + (new Vector3(0, 1, 0) * cubeSize));
+        corners[2].SetPos(position + (new Vector3(1, 1, 0) * cubeSize));
+        corners[3].SetPos(position + (new Vector3(1, 0, 0) * cubeSize));
+        corners[4].SetPos(position + (new Vector3(0, 0, 1) * cubeSize));
+        corners[5].SetPos(position + (new Vector3(0, 1, 1) * cubeSize));
+        corners[6].SetPos(position + (new Vector3(1, 1, 1) * cubeSize));
+        corners[7].SetPos(position + (new Vector3(1, 0, 1) * cubeSize));
         //Set correct edge vertices
         SetVerticesForEdges();
         //Calculate densities
-        corners[0].density = Density(position);       outcase += (corners[0].density < threshold ? 1 : 0) * Mathf.RoundToInt(Mathf.Pow(2, 0));
-        corners[1].density = Density(corners[1].pos); outcase += (corners[1].density < threshold ? 1 : 0) * Mathf.RoundToInt(Mathf.Pow(2, 1));
-        corners[2].density = Density(corners[2].pos); outcase += (corners[2].density < threshold ? 1 : 0) * Mathf.RoundToInt(Mathf.Pow(2, 2));
-        corners[3].density = Density(corners[3].pos); outcase += (corners[3].density < threshold ? 1 : 0) * Mathf.RoundToInt(Mathf.Pow(2, 3));
-        corners[4].density = Density(corners[4].pos); outcase += (corners[4].density < threshold ? 1 : 0) * Mathf.RoundToInt(Mathf.Pow(2, 4));
-        corners[5].density = Density(corners[5].pos); outcase += (corners[5].density < threshold ? 1 : 0) * Mathf.RoundToInt(Mathf.Pow(2, 5));
-        corners[6].density = Density(corners[6].pos); outcase += (corners[6].density < threshold ? 1 : 0) * Mathf.RoundToInt(Mathf.Pow(2, 6));
-        corners[7].density = Density(corners[7].pos); outcase += (corners[7].density < threshold ? 1 : 0) * Mathf.RoundToInt(Mathf.Pow(2, 7));
+        corners[0].SetDensity(Density(position));       
+        corners[1].SetDensity(Density(corners[1].pos)); 
+        corners[2].SetDensity(Density(corners[2].pos)); 
+        corners[3].SetDensity(Density(corners[3].pos)); 
+        corners[4].SetDensity(Density(corners[4].pos)); 
+        corners[5].SetDensity(Density(corners[5].pos)); 
+        corners[6].SetDensity(Density(corners[6].pos)); 
+        corners[7].SetDensity(Density(corners[7].pos));
+        //Calculate case
+        outcase += (corners[0].density < threshold ? 1 : 0) * Mathf.RoundToInt(Mathf.Pow(2, 0));
+        outcase += (corners[1].density < threshold ? 1 : 0) * Mathf.RoundToInt(Mathf.Pow(2, 1));
+        outcase += (corners[2].density < threshold ? 1 : 0) * Mathf.RoundToInt(Mathf.Pow(2, 2));
+        outcase += (corners[3].density < threshold ? 1 : 0) * Mathf.RoundToInt(Mathf.Pow(2, 3));
+        outcase += (corners[4].density < threshold ? 1 : 0) * Mathf.RoundToInt(Mathf.Pow(2, 4));
+        outcase += (corners[5].density < threshold ? 1 : 0) * Mathf.RoundToInt(Mathf.Pow(2, 5));
+        outcase += (corners[6].density < threshold ? 1 : 0) * Mathf.RoundToInt(Mathf.Pow(2, 6));
+        outcase += (corners[7].density < threshold ? 1 : 0) * Mathf.RoundToInt(Mathf.Pow(2, 7));
         //Return single marched cube mesh
         CombineInstance mesh = new CombineInstance();
         MarchedCubeMeshData data = GenerateMesh(outcase);
@@ -411,18 +424,18 @@ public struct MarchingCubesMarchJob : IJobParallelFor
     //Set correct corner points for edges
     private void SetVerticesForEdges()
     {
-        edges[0].vertex0 = corners[0]; edges[0].vertex1 = corners[1];
-        edges[1].vertex0 = corners[1]; edges[1].vertex1 = corners[2];
-        edges[2].vertex0 = corners[2]; edges[2].vertex1 = corners[3];
-        edges[3].vertex0 = corners[3]; edges[3].vertex1 = corners[0];
-        edges[4].vertex0 = corners[4]; edges[4].vertex1 = corners[5];
-        edges[5].vertex0 = corners[5]; edges[5].vertex1 = corners[6];
-        edges[6].vertex0 = corners[6]; edges[6].vertex1 = corners[7];
-        edges[7].vertex0 = corners[7]; edges[7].vertex1 = corners[4];
-        edges[8].vertex0 = corners[0]; edges[8].vertex1 = corners[4];
-        edges[9].vertex0 = corners[1]; edges[9].vertex1 = corners[5];
-        edges[10].vertex0 = corners[2]; edges[10].vertex1 = corners[6];
-        edges[11].vertex0 = corners[3]; edges[11].vertex1 = corners[7];
+        edges[0].SetVertex0(corners[0]); edges[0].SetVertex1(corners[1]);
+        edges[1].SetVertex0(corners[1]); edges[1].SetVertex1(corners[2]);
+        edges[2].SetVertex0(corners[2]); edges[2].SetVertex1(corners[3]);
+        edges[3].SetVertex0(corners[3]); edges[3].SetVertex1(corners[0]);
+        edges[4].SetVertex0(corners[4]); edges[4].SetVertex1(corners[5]);
+        edges[5].SetVertex0(corners[5]); edges[5].SetVertex1(corners[6]);
+        edges[6].SetVertex0(corners[6]); edges[6].SetVertex1(corners[7]);
+        edges[7].SetVertex0(corners[7]); edges[7].SetVertex1(corners[4]);
+        edges[8].SetVertex0(corners[0]); edges[8].SetVertex1(corners[4]);
+        edges[9].SetVertex0(corners[1]); edges[9].SetVertex1(corners[5]);
+        edges[10].SetVertex0(corners[2]); edges[10].SetVertex1(corners[6]);
+        edges[11].SetVertex0(corners[3]); edges[11].SetVertex1(corners[7]);
     }
     #endregion
 }
