@@ -4,11 +4,13 @@ using UnityEngine;
 using UnityEditor;
 using System.Linq;
 using System.Threading;
+using System.Threading.Tasks;
 //Marching cubes terrain script
 public class MarchingCubesTerrainScript : MonoBehaviour
 {
     public float threshold;//If density value is bigger than this, there is terrain at that 3D point
 
+    #region Explanation of chunk threshold
     /// <summary>
     /// Before making a chunk, we could optimize this terrain by checking if the position of that chunk itself is terrain, if it is then we can generate that chunk
     /// if it is not, we dont have to generate that chunk because we know there is no terrain. But what if the position of the chunk is somewhere where there is not air, but the chunk is actually filled with terrain ? 
@@ -16,22 +18,24 @@ public class MarchingCubesTerrainScript : MonoBehaviour
     /// We can turn this value low (-1) to make those more empty spaced chunks to generate
     /// Or we can turn it high (0) to make them not generate (Which might cause chunks to not be generated, so it might corrupt the terrain a little) 
     /// </summary>
+    #endregion
     public float chunkThreshold;
     public float cubeSize;//The size of the marched cube
     public bool onValidate;//Should we update the terrain if we change one of the parameters in the editor
     public bool interpolation;//Should we use interpolation for the edges points
     public bool mergeVertices;//Merges close vertices to a single vertex
     public float mergeDistance;//distance to merge closest vertices
-    public int size;//Size container for each chunk of the marched cube
     public bool generateAtStart;//Should we generate the whole world at start of the game ?
-    public bool generateChunks;//Should we generate the chunks or just leave them empty ?
+    public bool generateChunks;//Should we generate the chunks or just leave them empty ? Debug purposes
+    public bool generateCollisions;//Applies the new MarchedCube mesh to the collision for the chunk
+    public bool visibiltyAtStart;//The visibility of the chunks at the start of the game
+    public int size;//Size container for each chunk of the marched cube
+    public int threadSize;//How much threads can we allow in the threads pool
     public Vector3Int worldSize;//How much chunks we have in the world
     public Material material;
     private ChunkData[,,] chunks;
-    private MarchingCubesDensityScript densityCalculator;
+    private MarchingCubesDensityScript densityCalculator;//Calculates density at a 3d point for us
     private List<QueuedChunkMeshData> queuedMeshDataChunks;
-    private List<Thread> threadsChunks = new List<Thread>();//Threads that contain the chunk data
-
     public static int[,] triangulation = new int[256, 16]{
     {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1 },
     { 0, 8, 3, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1 },
@@ -321,7 +325,7 @@ public class MarchingCubesTerrainScript : MonoBehaviour
         if (generateAtStart) 
         {
             GenerateChunks(true, false, false);
-            SetChunksVisibility(false);
+            SetChunksVisibility(visibiltyAtStart);
         }
     }
 
@@ -333,14 +337,10 @@ public class MarchingCubesTerrainScript : MonoBehaviour
             //Debug.Log("Generate Mesh from MeshData for chunk :" + queuedMeshDataChunks[0].chunk.x + "-" + queuedMeshDataChunks[0].chunk.y + "-" + queuedMeshDataChunks[0].chunk.z);
             QueuedChunkMeshData queuedData = queuedMeshDataChunks[0];
             if (queuedData.chunk == null) return;
-            Mesh mesh = GenerateMesh(queuedData.finalMesh);
-            queuedData.chunk.UpdateMesh(mesh);
-            chunks[queuedData.x, queuedData.y, queuedData.z].chunkMesh = mesh;
+            Mesh mesh = GenerateMeshFromData(queuedData.finalMesh);
+            queuedData.chunk.UpdateMesh(mesh, generateCollisions);
+            chunks[queuedData.x, queuedData.y, queuedData.z].chunkMesh = mesh;            
             queuedMeshDataChunks.RemoveAt(0);
-        }
-        if(queuedMeshDataChunks.Count == 0) 
-        {
-            threadsChunks.Clear();
         }
     }
     public struct MarchedCubeMeshData //Information about the mesh
@@ -348,8 +348,6 @@ public class MarchingCubesTerrainScript : MonoBehaviour
         public List<Vector3> vertices;
         public List<int> triangles;
     }
-
-
     private struct QueuedChunkMeshData //Struct to be added to queue when thread finished calculating
     {
         public MarchedCubeMeshData finalMesh;
@@ -362,19 +360,22 @@ public class MarchingCubesTerrainScript : MonoBehaviour
         public Mesh chunkMesh;        
     }
     //Marches the cube in a x*x*x grid and generates a MarchedCubeMeshData out of it in another thread
-    private void GenerateMeshDataThread(Vector3 _position, MarchingCubesChunk chunk, MarchedCube marchedCube)
+    private void GenerateMeshDataThread(Vector3 _position, MarchingCubesChunk chunk, MarchedCube marchedCube, int x, int y, int z)
     {
         //Debug.Log("Started new chunk Thread for chunk : " + chunk.x + "-" + chunk.y + "-" + chunk.z);
         QueuedChunkMeshData queuedMeshData = new QueuedChunkMeshData();
         queuedMeshData.finalMesh = MarchCube(_position, marchedCube);
         queuedMeshData.chunk = chunk;//Set chunk so we can call it back when we want to update its mesh
+        queuedMeshData.x = x;
+        queuedMeshData.y = y;
+        queuedMeshData.z = z;
         lock (queuedMeshDataChunks)
         {
             queuedMeshDataChunks.Add(queuedMeshData);//Add to list so it can be processed later        
         }
     }
     //Creates Mesh out of the MarchedCubeMeshData
-    private Mesh GenerateMesh(MarchedCubeMeshData meshData)
+    private Mesh GenerateMeshFromData(MarchedCubeMeshData meshData)
     {
         //Copy final meshData to real mesh
         Mesh mesh = new Mesh();
@@ -398,7 +399,7 @@ public class MarchingCubesTerrainScript : MonoBehaviour
 
         List<MarchedCubeMeshData> combineMeshesList = new List<MarchedCubeMeshData>();
 
-        int outcase;
+        int outcase;        
         for (int x = 0; x < size; x++)
         {
             for (int z = 0; z < size; z++)
@@ -406,7 +407,7 @@ public class MarchingCubesTerrainScript : MonoBehaviour
                 for (int y = 0; y < size; y++)
                 {
                     outcase = marchedCube.MarchCube((new Vector3(x, y, z) * cubeSize) + _position);//Get density points at this location
-                    meshData = GenerateMesh(outcase, _position, marchedCube);//Create a small mesh section out of the density points
+                    meshData = GenerateMeshFromCase(outcase, _position, marchedCube);//Create a small mesh section out of the density points
                     //Update current mesh
                     newmesh = new MarchedCubeMeshData
                     {
@@ -498,7 +499,7 @@ public class MarchingCubesTerrainScript : MonoBehaviour
         return mesh;
     }
     //Generate mesh out of the triangulation table and the marchedcube data
-    private MarchedCubeMeshData GenerateMesh(int outcase, Vector3 offsetpos, MarchedCube marchedCube)
+    private MarchedCubeMeshData GenerateMeshFromCase(int outcase, Vector3 offsetpos, MarchedCube marchedCube)
     {
         List<int> triangles = new List<int>();
         List<Vector3> vertices = new List<Vector3>();
@@ -549,21 +550,21 @@ public class MarchingCubesTerrainScript : MonoBehaviour
     {
         if (x < 0 || y < 0 || z < 0) return;
         if (x >= worldSize.x || y >= worldSize.y || z >= worldSize.z) return;
-        Vector3 chunkPos = TransformCoordinatesChunkToWorld(x, y, z);        
+        Vector3 chunkPos = TransformCoordinatesChunkToWorld(x, y, z);
         if (chunks[x, y, z].chunkScript == null)//Generate new chunks if they dont exist yet
         {
 
             GameObject chunk = Instantiate(chunkPrefab, chunkPos, Quaternion.identity, transform);
-            chunk.name = x + "-" + y + "-" + z;
+            chunk.name = string.Concat(x, "-", y, "-", z);
             MarchingCubesChunk chunkScript = chunk.GetComponent<MarchingCubesChunk>();
-            MarchedCube marchedCube = new MarchedCube(cubeSize, threshold, densityCalculator);//Creates an Instance of the MarchedCubeClass with all the parameters
-
+            MarchedCube marchedCube = new MarchedCube();//Creates an Instance of the MarchedCubeClass with all the parameters
+            marchedCube.Setup(cubeSize, threshold, densityCalculator);
             chunkScript.StartChunk(this, x, y, z);
             if (!multithreaded)
             {
                 chunks[x, y, z].chunkScript = chunkScript;
                 if (densityCalculator.Density(chunkPos) < chunkThreshold) return;//This chunk is not filled with terrain
-                if(generateChunks) chunkScript.UpdateMesh(GenerateMesh(MarchCube(chunkScript.transform.position, marchedCube)));
+                if(generateChunks) chunkScript.UpdateMesh(GenerateMeshFromData(MarchCube(chunkScript.transform.position, marchedCube)), generateCollisions);
             }
             else
             {
@@ -572,32 +573,29 @@ public class MarchingCubesTerrainScript : MonoBehaviour
                 if (densityCalculator.Density(chunkPos) < chunkThreshold) return;//This chunk is not filled with terrai
                 if (generateChunks)
                 {
-                    Thread chunkThread = new Thread(() => GenerateMeshDataThread(chunkPos, chunkScript, marchedCube));
-                    chunkThread.Start();
-                    threadsChunks.Add(chunkThread);
+                    ThreadPool.QueueUserWorkItem(state => GenerateMeshDataThread(chunkPos, chunkScript, marchedCube, x, y, z));
                 }
             }
         }
         else if(update)
         {
             MarchingCubesChunk chunkScript = chunks[x, y, z].chunkScript;
-            MarchedCube marchedCube = new MarchedCube(cubeSize, threshold, densityCalculator);//Creates an Instance of the MarchedCubeClass with all the parameters
+            MarchedCube marchedCube = new MarchedCube();//Creates an Instance of the MarchedCubeClass with all the parameters
+            marchedCube.Setup(cubeSize, threshold, densityCalculator);
             if (!multithreaded)
             {
-                if(generateChunks) chunkScript.UpdateMesh(GenerateMesh(MarchCube(chunkScript.transform.position, marchedCube)));
+                if(generateChunks) chunkScript.UpdateMesh(GenerateMeshFromData(MarchCube(chunkScript.transform.position, marchedCube)), generateCollisions);
             }
             else
             {
                 if (generateChunks) 
-                { 
-                    Thread chunkThread = new Thread(() => GenerateMeshDataThread(chunkPos, chunkScript, marchedCube));
-                    chunkThread.Start();
-                    threadsChunks.Add(chunkThread);
+                {
+                    ThreadPool.QueueUserWorkItem(state => GenerateMeshDataThread(chunkPos, chunkScript, marchedCube, x, y, z));
                 }
             }
+            
         }
     }
-    
     //Generate a single chunk using world coordinates
     public void GenerateChunk(Vector3 pos, bool multithreaded, bool update)
     {
@@ -668,15 +666,7 @@ public class MarchingCubesTerrainScript : MonoBehaviour
         if (x >= worldSize.x || y >= worldSize.y || z >= worldSize.z) return new ChunkData(); 
         return chunks[x, y, z];
     }
-    //Stop all running threads when game is going to end
-    private void OnDisable()
-    {
-        for (int i = 0; i < threadsChunks.Count; i++)
-        {
-            threadsChunks[i].Abort();
-        }
-        threadsChunks.Clear();
-    }
+
 
     //Debug stuff
     private void OnValidate()
@@ -689,10 +679,10 @@ public class MarchingCubesTerrainScript : MonoBehaviour
         {
             //Set variables
             if (densityCalculator == null) densityCalculator = GetComponent<MarchingCubesDensityScript>();
-            MarchedCube marchedCube = new MarchedCube(cubeSize, threshold, densityCalculator);
-            marchedCube.SetParams(cubeSize, threshold, densityCalculator);
+            MarchedCube marchedCube = new MarchedCube();
+            marchedCube.Setup(cubeSize, threshold, densityCalculator);
             GetComponent<MarchingCubesChunk>().StartChunk(this, 0, 0, 0);
-            GetComponent<MarchingCubesChunk>().UpdateMesh(GenerateMesh(MarchCube(transform.position, marchedCube)));
+            GetComponent<MarchingCubesChunk>().UpdateMesh(GenerateMeshFromData(MarchCube(transform.position, marchedCube)), generateCollisions);
         }
     }
     private void OnDrawGizmos()
@@ -703,7 +693,7 @@ public class MarchingCubesTerrainScript : MonoBehaviour
 
 //The cube that we are going to march
 //Will be created for each chunk so we can run all the marchingcubes in parralel
-public class MarchedCube
+public struct MarchedCube
 {
     //Each 8 Corners of the cube
     public struct MarchedCubeCorner
@@ -720,10 +710,10 @@ public class MarchedCube
     }
     private float cubeSize;
     private float threshold;//If density is higher than this, there is terrain at that point
-    private int outcase = 0;//Case for marched cube
+    private int outcase;//Case for marched cube
     MarchingCubesDensityScript densityCalculator;
     //Instantiate new MarchedCube class
-    public MarchedCube(float _cubeSize, float _threshold, MarchingCubesDensityScript _densityCalculator) //Initialization of the MarchedCube
+    public void Setup(float _cubeSize, float _threshold, MarchingCubesDensityScript _densityCalculator) //Initialization of the MarchedCube
     {
         //Setup parameters
         cubeSize = _cubeSize;
@@ -748,32 +738,27 @@ public class MarchedCube
         edges[10].vertex0 = corners[2]; edges[10].vertex1 = corners[6];
         edges[11].vertex0 = corners[3]; edges[11].vertex1 = corners[7];
     }
-    //Set parameters for an already generated MarchedCube class
-    public void SetParams(float _cubeSize, float _threshold, MarchingCubesDensityScript _densityCalculator) 
-    {
-        cubeSize = _cubeSize;
-        threshold = _threshold;
-        densityCalculator = _densityCalculator;
-    }
-    public MarchedCubeCorner[] corners = new MarchedCubeCorner[8];
-    public MarchedCubeEdge[] edges = new MarchedCubeEdge[12];
+    public MarchedCubeCorner[] corners;
+    public MarchedCubeEdge[] edges;
+    MarchedCubeCorner corner0, corner1;
+    float density0, density1, estimatedSurface;
     public Vector3 GetEdgePoint(int edgeIndex, bool smoothed)
     {
         //return edgePoints[edgeIndex];
-        MarchedCubeCorner corner0 = edges[edgeIndex].vertex0;
-        MarchedCubeCorner corner1 = edges[edgeIndex].vertex1;
-        float density0 = corner0.density;
-        float density1 = corner1.density;
+        corner0 = edges[edgeIndex].vertex0;
+        corner1 = edges[edgeIndex].vertex1;
+        density0 = corner0.density;
+        density1 = corner1.density;
 
         //float estimatedSurface = (threshold - density0) / (density1 - density0);  
-        float estimatedSurface = Mathf.InverseLerp(density0, density1, threshold);
+        estimatedSurface = Mathf.InverseLerp(density0, density1, threshold);
         if (smoothed)
             return Vector3.Lerp(corner0.pos, corner1.pos, estimatedSurface);
         else
             return Vector3.Lerp(corner0.pos, corner1.pos, 0.5f);   
     }
 
-    public int MarchCube(Vector3 newpos) 
+    public int MarchCube(Vector3 newpos)
     {
         outcase = 0;
         //Set corners new position

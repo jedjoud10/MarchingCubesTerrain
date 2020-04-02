@@ -24,10 +24,10 @@ public class MarchingCubesChunk : MonoBehaviour
         x = _x; y = _y; z = _z;
     }
     //Update current mesh
-    public void UpdateMesh(Mesh _mesh) 
+    public void UpdateMesh(Mesh _mesh, bool generateCollisions) 
     {
-        GetComponent<MeshFilter>().sharedMesh = _mesh;
-        GetComponent<MeshCollider>().sharedMesh = _mesh;
+        if(generateCollisions) GetComponent<MeshCollider>().sharedMesh = _mesh;
+        GetComponent<MeshFilter>().sharedMesh = _mesh;        
     }
     //Hide chunk
     public void OnHideChunk() 
