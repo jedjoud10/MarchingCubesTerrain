@@ -14,20 +14,21 @@ public class FlyCamera : MonoBehaviour
     space : Moves camera on X and Z axis only.  So camera doesn't gain any height*/
 
 
-    float mainSpeed = 100.0f; //regular speed
-    float shiftAdd = 250.0f; //multiplied by how long shift is held.  Basically running
-    float maxShift = 1000.0f; //Maximum speed when holdin gshift
-    float camSens = 0.25f; //How sensitive it with mouse
-    private Vector3 lastMouse = new Vector3(255, 255, 255); //kind of in the middle of the screen, rather than at the top (play)
+    float mainSpeed = 50.0f; //regular speed
+    float shiftAdd = 100.0f; //multiplied by how long shift is held.  Basically running
+    float maxShift = 200.0f; //Maximum speed when holdin gshift
+    float camSens = 120f; //How sensitive it with mouse
+    private Vector3 lastMouse;
     private float totalRun = 1.0f;
-
+    private void Start()
+    {
+        Cursor.lockState = CursorLockMode.Locked;
+        Cursor.visible = false;
+    }
     void Update()
     {
-        lastMouse = Input.mousePosition - lastMouse;
-        lastMouse = new Vector3(-lastMouse.y * camSens, lastMouse.x * camSens, 0);
-        lastMouse = new Vector3(transform.eulerAngles.x + lastMouse.x, transform.eulerAngles.y + lastMouse.y, 0);
+        lastMouse += new Vector3(-Input.GetAxis("Mouse Y") * camSens * Time.deltaTime, Input.GetAxis("Mouse X") * camSens * Time.deltaTime, 0);
         transform.eulerAngles = lastMouse;
-        lastMouse = Input.mousePosition;
         //Mouse  camera angle done.  
 
         //Keyboard commands

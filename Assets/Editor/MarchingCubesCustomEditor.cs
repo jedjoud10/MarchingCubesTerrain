@@ -13,7 +13,7 @@ public class ObjectBuilderEditor : Editor
         MarchingCubesTerrainScript myScript = (MarchingCubesTerrainScript)target;
         if (GUILayout.Button("Generate chunks"))
         {
-            myScript.GenerateChunks();
+            myScript.GenerateChunks(false, true, true);
         }
     }
 }

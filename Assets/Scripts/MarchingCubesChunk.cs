@@ -23,12 +23,6 @@ public class MarchingCubesChunk : MonoBehaviour
         chunkRenderer.material = terrain.material;
         x = _x; y = _y; z = _z;
     }
-
-    // Update is called once per frame
-    void Update()
-    {
-        
-    }
     //Update current mesh
     public void UpdateMesh(Mesh _mesh) 
     {
