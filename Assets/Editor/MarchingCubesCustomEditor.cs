@@ -15,5 +15,9 @@ public class ObjectBuilderEditor : Editor
         {
             myScript.GenerateChunks(false, true, true);
         }
+        if(GUILayout.Button("Fix Chunk Seams")) 
+        {
+            myScript.FixChunkSeams();
+        }
     }
 }

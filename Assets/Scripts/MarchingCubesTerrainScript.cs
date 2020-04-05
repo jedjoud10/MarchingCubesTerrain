@@ -1,4 +1,5 @@
 ﻿using System.Collections;
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEditor;
@@ -326,7 +327,7 @@ public class MarchingCubesTerrainScript : MonoBehaviour
             cameras.canGenerateChunks = true;
         }//Init Chunk camera loaders
         queuedMeshDataChunks.Clear();
-        if (generateAtStart) 
+        if (generateAtStart)
         {
             GenerateChunks(true, false, false);
             SetChunksVisibility(visibiltyAtStart);
@@ -343,8 +344,8 @@ public class MarchingCubesTerrainScript : MonoBehaviour
             if (queuedData.chunk == null) return;
             Mesh mesh = GenerateMeshFromData(queuedData.finalMesh);
             queuedData.chunk.UpdateMesh(mesh, generateCollisions);
-            chunks[queuedData.x, queuedData.y, queuedData.z].chunkMesh = mesh;    
-            
+            chunks[queuedData.x, queuedData.y, queuedData.z].chunkMesh = mesh;
+
             queuedMeshDataChunks.RemoveAt(0);
         }
     }
@@ -372,6 +373,7 @@ public class MarchingCubesTerrainScript : MonoBehaviour
     }
     #endregion 
     #region Mesh generation
+
     public struct MarchedCubeMeshData //Information about the mesh
     {
         public List<Vector3> vertices;
@@ -392,7 +394,7 @@ public class MarchingCubesTerrainScript : MonoBehaviour
         return mesh;
     }
     //Marches the cube in a x*x*x grid and generates a MarchedCubeMeshData out of it
-    private MarchedCubeMeshData MarchCube(Vector3 _position, MarchedCube marchedCube) 
+    private MarchedCubeMeshData MarchCube(Vector3 _position, MarchedCube marchedCube)
     {
         MarchedCubeMeshData meshData;//Variable that will be helpful for storing and moving mesh data
         meshData.vertices = new List<Vector3>();
@@ -430,7 +432,7 @@ public class MarchingCubesTerrainScript : MonoBehaviour
         return outputMesh;
     }
     //Combine multiple MarchingCubeMeshData together
-    private MarchedCubeMeshData CombineMeshes(List<MarchedCubeMeshData> meshDatas) 
+    private MarchedCubeMeshData CombineMeshes(List<MarchedCubeMeshData> meshDatas)
     {
         MarchedCubeMeshData outputMeshData;
         outputMeshData = new MarchedCubeMeshData();
@@ -540,13 +542,13 @@ public class MarchingCubesTerrainScript : MonoBehaviour
     {
         public MarchedCube cube;
         public MarchingCubesChunk chunkScript;
-        public Mesh chunkMesh;        
+        public Mesh chunkMesh;
     }
     //Generates all the chunks of the terrain
-    public void GenerateChunks(bool multithreaded, bool update, bool inEditor) 
+    public void GenerateChunks(bool multithreaded, bool update, bool inEditor)
     {
         if (chunks == null || chunks.GetLength(0) != worldSize.x || chunks.GetLength(1) != worldSize.y || chunks.GetLength(2) != worldSize.z) chunks = new ChunkData[worldSize.x, worldSize.y, worldSize.z];
-        if(inEditor) chunks[0, 0, 0].chunkScript = GetComponent<MarchingCubesChunk>();
+        if (inEditor) chunks[0, 0, 0].chunkScript = GetComponent<MarchingCubesChunk>();
 
 
         for (int x = 0; x < worldSize.x; x++)
@@ -561,7 +563,7 @@ public class MarchingCubesTerrainScript : MonoBehaviour
         }
     }
     //Generate a single chunk
-    public void GenerateChunk(int x, int y, int z, bool multithreaded, bool update) 
+    public void GenerateChunk(int x, int y, int z, bool multithreaded, bool update)
     {
         if (x < 0 || y < 0 || z < 0) return;
         if (x >= worldSize.x || y >= worldSize.y || z >= worldSize.z) return;
@@ -570,7 +572,7 @@ public class MarchingCubesTerrainScript : MonoBehaviour
         {
             GameObject chunk;
             chunk = Instantiate(chunkPrefab, chunkPos, Quaternion.identity, transform);
-            
+
             chunk.name = string.Concat(x, "-", y, "-", z);
             MarchingCubesChunk chunkScript = chunk.GetComponent<MarchingCubesChunk>();
             MarchedCube marchedCube = new MarchedCube();//Creates an Instance of the MarchedCubeClass with all the parameters
@@ -580,7 +582,7 @@ public class MarchingCubesTerrainScript : MonoBehaviour
             {
                 chunks[x, y, z].chunkScript = chunkScript;
                 if (densityCalculator.Density(chunkPos) < chunkThreshold) return;//This chunk is not filled with terrain
-                if(generateChunks) chunkScript.UpdateMesh(GenerateMeshFromData(MarchCube(chunkScript.transform.position, marchedCube)), generateCollisions);
+                if (generateChunks) chunkScript.UpdateMesh(GenerateMeshFromData(MarchCube(chunkScript.transform.position, marchedCube)), generateCollisions);
                 chunks[x, y, z].cube = marchedCube;
             }
             else
@@ -594,24 +596,24 @@ public class MarchingCubesTerrainScript : MonoBehaviour
                 }
             }
         }
-        else if(update)
+        else if (update)
         {
             MarchingCubesChunk chunkScript = chunks[x, y, z].chunkScript;
             MarchedCube marchedCube = chunks[x, y, z].cube;//Creates an Instance of the MarchedCubeClass with all the parameters
             marchedCube.Setup(cubeSize, threshold, densityCalculator, size, useDensities, chunkPos);
             if (!multithreaded)
             {
-                if(generateChunks) chunkScript.UpdateMesh(GenerateMeshFromData(MarchCube(chunkScript.transform.position, marchedCube)), generateCollisions);
+                if (generateChunks) chunkScript.UpdateMesh(GenerateMeshFromData(MarchCube(chunkScript.transform.position, marchedCube)), generateCollisions);
                 chunks[x, y, z].cube = marchedCube;
             }
             else
             {
-                if (generateChunks) 
+                if (generateChunks)
                 {
                     ThreadPool.QueueUserWorkItem(state => GenerateMeshDataThread(chunkPos, chunkScript, marchedCube, x, y, z));
                 }
             }
-            
+
         }
     }
     //Generate a single chunk using world coordinates
@@ -622,7 +624,7 @@ public class MarchingCubesTerrainScript : MonoBehaviour
     }
     #region Coordinates
     //Transform chunk coordinates into world coordinates
-    public Vector3 TransformCoordinatesChunkToWorld(int x, int y, int z) 
+    public Vector3 TransformCoordinatesChunkToWorld(int x, int y, int z)
     {
         return new Vector3(x * size * cubeSize, y * size * cubeSize, z * size * cubeSize);
     }
@@ -632,7 +634,7 @@ public class MarchingCubesTerrainScript : MonoBehaviour
         return new Vector3(pos.x * size * cubeSize, pos.y * size * cubeSize, pos.z * size * cubeSize);
     }
     //Transform world coordinates into chunk coordinates
-    public Vector3Int TransformCoordinatesWorldToChunk(Vector3 pos) 
+    public Vector3Int TransformCoordinatesWorldToChunk(Vector3 pos)
     {
         return new Vector3Int(Mathf.RoundToInt(pos.x / size / cubeSize), Mathf.RoundToInt(pos.y / size / cubeSize), Mathf.RoundToInt(pos.z / size / cubeSize));
     }
@@ -662,7 +664,7 @@ public class MarchingCubesTerrainScript : MonoBehaviour
         else chunk.chunkScript.OnHideChunk();
     }
     //Set chunk visibilty for all chunks
-    public void SetChunksVisibility(bool isVisible) 
+    public void SetChunksVisibility(bool isVisible)
     {
         foreach (var chunk in chunks)
         {
@@ -672,8 +674,9 @@ public class MarchingCubesTerrainScript : MonoBehaviour
         }
     }
     #endregion
+    #region Getting Chunks
     //Get chunk (Returns null if chunk is outside map bounds)
-    public ChunkData GetChunk(Vector3 pos) 
+    public ChunkData GetChunk(Vector3 pos)
     {
         Vector3Int newpos = TransformCoordinatesWorldToChunk(pos);
         int x, y, z;
@@ -685,38 +688,126 @@ public class MarchingCubesTerrainScript : MonoBehaviour
     //Get chunk (Returns null if chunk is outside map bounds)
     public ChunkData GetChunk(int x, int y, int z)
     {
-        if (x < 0 || y < 0 || z < 0) return new ChunkData(); 
-        if (x >= worldSize.x || y >= worldSize.y || z >= worldSize.z) return new ChunkData(); 
+        if (x < 0 || y < 0 || z < 0) return new ChunkData();
+        if (x >= worldSize.x || y >= worldSize.y || z >= worldSize.z) return new ChunkData();
         return chunks[x, y, z];
     }
+    //Delegate to be called back whenever the last loop in GetChunksInCube has run
+    public delegate void GetChunksInCubeForEach(int x, int y, int z, Vector3 worldPosition, ChunkData chunk);
+    //Get chunks in a cube from chunk data
+    public List<ChunkData> GetChunksInCube(int cubeSize, int xs, int ys, int zs, GetChunksInCubeForEach delegateFunction) 
+    {
+        if (chunks == null) chunks = new ChunkData[worldSize.x, worldSize.y, worldSize.z];//Bruh moment
+        int xc, yc, zc;//Position of the current chunk
+        List<ChunkData> outChunks = new List<ChunkData>();
+        ChunkData chunk;//The current chunk that we are on
+        for (int x = -cubeSize; x < cubeSize; x++)
+        {
+            for (int y = -cubeSize; y < cubeSize; y++)
+            {
+                for (int z = -cubeSize; z < cubeSize; z++)
+                {
+                    xc = x + xs;
+                    yc = y + ys;
+                    zc = z + zs;
+                    chunk = GetChunk(xc, yc, zc);
+                    if(chunk.chunkScript != null) outChunks.Add(chunk);//Even if we have a delegate function, having a return type for a list is not a bad thing
+                    delegateFunction(xc, yc, zc, TransformCoordinatesChunkToWorld(xc, yc, zc), chunk);//Call delegate function
+                }
+            }
+        }
+        return outChunks;
+    }
+    //Gets chunks in a cube from world space data (1/2)
+    public List<ChunkData> GetChunksInCube(int cubeSize, Vector3 pos, GetChunksInCubeForEach delegateFunction) 
+    {
+        Vector3Int chunkPos = TransformCoordinatesWorldToChunk(pos);
+        return GetChunksInCube(cubeSize, chunkPos.x, chunkPos.y, chunkPos.z, delegateFunction);
+    }
+    //Gets chunks in a cube from world space data (2/2) Adds the offset to the final cube size
+    public List<ChunkData> GetChunksInCube(float _cubeSize, int offset, Vector3 pos, GetChunksInCubeForEach delegateFunction) 
+    {
+        return GetChunksInCube(Mathf.Max(Mathf.RoundToInt(_cubeSize / size / cubeSize), 1) + offset, pos, delegateFunction);
+    }
+    #endregion
     #endregion
     #region Editor
-    //Makes densities modify their values for the specified chunk using a brush
-    //Using a sphere brush
-    public void EditChunkDensitiesSphereBrush(int chunkX, int chunkY, int chunkZ, Vector3 sphereCenter, float falloffDistance) 
+    //Makes densities modify their values for the specified chunk using a sphere brush
+    public void EditChunkDensitiesSphereBrush(int chunkX, int chunkY, int chunkZ, Vector3 sphereCenter, float falloffDistance, float strenghBrush) 
     {
-        ChunkData chunkData = chunks[chunkX, chunkY, chunkZ];
+        ChunkData chunkData = GetChunk(chunkX, chunkY, chunkZ);
+        if (chunkData.chunkScript == null) return;//Bruh moment
         MarchedCube marchingCube = chunkData.cube;
         float[,,] densities = marchingCube.densities;
         Vector3 chunkPos = marchingCube.chunkPosition;
         Vector3 worldSpacePosition;//The world space position of the chunk density point
-        for (int x = 0; x < size; x++)
+        int _size = size + 1;
+        for (int x = 0; x < _size; x++)
         {
-            for (int y = 0; y < size; y++)
+            for (int y = 0; y < _size; y++)
             {
-                for (int z = 0; z < size; z++)
+                for (int z = 0; z < _size; z++)
                 {
                     worldSpacePosition.x = x * cubeSize + chunkPos.x;
                     worldSpacePosition.y = y * cubeSize + chunkPos.y;
                     worldSpacePosition.z = z * cubeSize + chunkPos.z;
-                    densities[x, y, z] = falloffDistance - Vector3.Distance(sphereCenter, worldSpacePosition);
+                    densities[x, y, z] += Mathf.Max(falloffDistance - Vector3.Distance(sphereCenter, worldSpacePosition), 0) * strenghBrush;
+                    //Debug.DrawRay(worldSpacePosition, Vector3.up * 0.5f, Color.red);
                 }
             }
         }
+
         //Update variables
+        //Copy chunk edge densities
+        if (chunkX > 0)
+        {
+            marchingCube.CopyChunkEdgeDensitiesX(chunks[chunkX - 1, chunkY, chunkZ].cube);
+        }
+        if (chunkY > 0)
+        {
+            marchingCube.CopyChunkEdgeDensitiesY(chunks[chunkX, chunkY - 1, chunkZ].cube);
+        }
+        if (chunkZ > 0)
+        {
+            marchingCube.CopyChunkEdgeDensitiesZ(chunks[chunkX, chunkY, chunkZ - 1].cube);
+        }
+
+        marchingCube.readDensities = true;
         marchingCube.densities = densities;
         chunkData.cube = marchingCube;
         chunks[chunkX, chunkY, chunkZ] = chunkData;
+        MarchingCubesChunk chunkScript = chunks[chunkX, chunkY, chunkZ].chunkScript;
+        chunkScript.UpdateMesh(GenerateMeshFromData(MarchCube(marchingCube.chunkPosition, marchingCube)), generateCollisions);
+    }
+    //Temporary fix for the seams between the chunks
+    public void FixChunkSeams() 
+    {
+        MarchedCube marchingCube;//The marchingcube that is going to fix up the chunk seams by copying the chunk edge densities
+        for (int x = 0; x < worldSize.x; x++)
+        {
+            for (int y = 0; y < worldSize.y; y++)
+            {
+                for (int z = 0; z < worldSize.z; z++)
+                {
+                    marchingCube = chunks[x, y, z].cube;
+                    //Copy chunk edge densities
+                    if (x > 0)
+                    {
+                        marchingCube.CopyChunkEdgeDensitiesX(chunks[x - 1, y, z].cube);
+                    }
+                    if (y > 0)
+                    {
+                        marchingCube.CopyChunkEdgeDensitiesY(chunks[x, y - 1, z].cube);
+                    }
+                    if (z > 0)
+                    {
+                        marchingCube.CopyChunkEdgeDensitiesZ(chunks[x, y, z - 1].cube);
+                    }
+                    chunks[x, y, z].chunkScript.UpdateMesh(GenerateMeshFromData(MarchCube(marchingCube.chunkPosition, marchingCube)), generateCollisions);
+                    chunks[x, y, z].cube = marchingCube;
+                }
+            }
+        }
     }
     #endregion
 
@@ -766,7 +857,7 @@ public struct MarchedCube
     private int outcase;//Case for marched cube
     private bool useDensities;//Should we save densities and reuse them ?
     public float[,,] densities;
-    private bool readDensities;//Instead of calling densityCalculator , read the densities array and use those as densities for points
+    public bool readDensities;//Instead of calling densityCalculator , read the densities array and use those as densities for points
     public Vector3 chunkPosition;//The position of the chunk in world space
     MarchingCubesDensityScript densityCalculator;
     //Instantiate new MarchedCube class
@@ -779,11 +870,12 @@ public struct MarchedCube
         corners = new MarchedCubeCorner[8];
         edges = new MarchedCubeEdge[12];
         useDensities = _useDensities;
-        size = _size;
         chunkPosition = _chunkPosition;
         readDensities = false;
+        size = _size + 1;
         if (useDensities) densities = new float[size, size, size];
     }
+    
     //Set correct corner points for edges
     private void SetVerticesForEdges() 
     {
@@ -820,6 +912,47 @@ public struct MarchedCube
         else
             return Vector3.Lerp(corner0.pos, corner1.pos, 0.5f);   
     }
+    #region Copy chunk edges
+    //Copies the chunk edge densities from another amrchingCube (XAxis)
+    public void CopyChunkEdgeDensitiesX(MarchedCube otherMarchedCube) 
+    {
+        float[,,] otherDensities = otherMarchedCube.densities;
+        for (int y = 0; y < size; y++)
+        {
+            for (int z = 0; z < size; z++)
+            {
+                densities[0, y, z] = otherDensities[size - 1, y, z];
+               // Debug.DrawRay(new Vector3(0, y, z) * cubeSize + chunkPosition, Vector3.right * 0.5f, Color.green);
+            }
+        }        
+    }
+    //Copies the chunk edge densities from another amrchingCube (YAxis)
+    public void CopyChunkEdgeDensitiesY(MarchedCube otherMarchedCube)
+    {
+        float[,,] otherDensities = otherMarchedCube.densities;
+        for (int x = 0; x < size; x++)
+        {
+            for (int z = 0; z < size; z++)
+            {
+                densities[x, 0, z] = otherDensities[x, size - 1, z];
+                //Debug.DrawRay(new Vector3(x, 0, z) * cubeSize + chunkPosition, Vector3.up * 0.5f, Color.green);
+            }
+        }        
+    }
+    //Copies the chunk edge densities from another amrchingCube (ZAxis)
+    public void CopyChunkEdgeDensitiesZ(MarchedCube otherMarchedCube)
+    {
+        float[,,] otherDensities = otherMarchedCube.densities;
+        for (int x = 0; x < size; x++)
+        {
+            for (int y = 0; y < size; y++)
+            {
+                densities[x, y, 0] = otherDensities[x, y, size - 1];
+                //Debug.DrawRay(new Vector3(x, y, 0) * cubeSize + chunkPosition, Vector3.forward * 0.5f, Color.green);
+            }
+        }        
+    }
+    #endregion
     //Gets all 8 vertices' density at a base position
     public int MarchCube(Vector3 newpos, int x, int y, int z)
     {
@@ -837,7 +970,7 @@ public struct MarchedCube
         if (readDensities)
         {
             corners[0].density = densities[x, y, z];
-            if (x < size - 1 && y < size - 1 && z < size - 1)
+            if (x < size && y < size && z < size)
             {
                 corners[1].density = densities[x, y + 1, z];
                 corners[2].density = densities[x + 1, y + 1, z];
@@ -871,7 +1004,7 @@ public struct MarchedCube
         if (useDensities && !readDensities)//Save densities
         {
             densities[x, y, z] = corners[0].density;
-            if (x < size-1 && y < size-1 && z < size-1)
+            if (x < size && y < size && z < size)
             {
                 densities[x, y + 1, z] = corners[1].density;
                 densities[x + 1, y + 1, z] = corners[2].density;
