@@ -3,8 +3,8 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 using System.Threading;
-using UnityEngine.SceneManagement;
 using UnityEditor.SceneManagement;
+using Unity;
 //Marching cubes terrain script
 public class MarchingCubesTerrainScript : MonoBehaviour
 {
@@ -931,7 +931,7 @@ public class MarchingCubesTerrainScript : MonoBehaviour
     }
 
     #endregion
-
+    #region Debug Stuff
     //Debug stuff
     private void OnValidate()
     {
@@ -953,6 +953,7 @@ public class MarchingCubesTerrainScript : MonoBehaviour
     {
         Gizmos.DrawWireCube(((new Vector3(size, size, size)) / 2 * cubeSize), (new Vector3(size, size, size)) * cubeSize);        
     }
+    #endregion
 }
 
 //The cube that we are going to march
