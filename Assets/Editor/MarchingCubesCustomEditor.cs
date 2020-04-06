@@ -19,5 +19,15 @@ public class ObjectBuilderEditor : Editor
         {
             myScript.FixChunkSeams();
         }
+        GUILayout.BeginHorizontal();
+        if (GUILayout.Button("Save Chunks"))
+        {
+            myScript.SaveChunksData();
+        }
+        if (GUILayout.Button("Load Chunks"))
+        {
+            myScript.LoadChunksData();
+        }
+        GUILayout.EndHorizontal();
     }
 }

@@ -13,6 +13,7 @@ public class MarchingCubesEditor : MonoBehaviour
     [HideInInspector]
     public bool invertBrush;//Invert the strengh of the brush
     public MarchingCubesEditorBrushType brushType;//The current brush we are using
+    public bool autoFixSeams;//auto fix the seams between chunks (Heavier on performance)
 
     private MarchingCubesTerrainScript terrainScript;//The script that handles the whole marchingcube logic and meshes
     [SerializeField]
@@ -34,8 +35,6 @@ public class MarchingCubesEditor : MonoBehaviour
     {
         if (terrainScript == null) terrainScript = GetComponent<MarchingCubesTerrainScript>();
         Gizmos.DrawWireSphere(hitPoint, brushSize);
-        Gizmos.color = Color.red;
-        Gizmos.DrawWireSphere(hitPoint, brushSize + 3);
         GetChunks();
     }
     //Gets the chunk script from the hitCollider form the brush
@@ -43,7 +42,7 @@ public class MarchingCubesEditor : MonoBehaviour
     {
         List<MarchingCubesChunk> outputChunks = new List<MarchingCubesChunk>();
         MarchingCubesTerrainScript.GetChunksInCubeForEach forEachChunk = new MarchingCubesTerrainScript.GetChunksInCubeForEach(ForEachChunk);
-        terrainScript.GetChunksInCube(brushSize, 1, hitPoint, forEachChunk);
+        terrainScript.GetChunksInCube(brushSize, autoFixSeams ? 1 : 0, hitPoint, forEachChunk);
     }
 
     //Callback method from the GetChunksInCube

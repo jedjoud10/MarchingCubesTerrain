@@ -6,7 +6,6 @@ public class MarchingCubesChunkLoaderCameraScript : MonoBehaviour
 {
     public int updateTime;//How much to update the chunks. Lower value means more chunk updates, which means more chunk lag
     public int chunkDistance;//The maximum distance we can see chunks at
-    public bool keepChunksLoaded;//Keeps the generated chunks loaded even if we get far away from them
     private MarchingCubesTerrainScript terrainScript;//Terrain generator
     private Dictionary<int, MarchingCubesTerrainScript.ChunkData> loadedChunks;
     private Vector3Int chunkCoordinates;//Chunk coordinates of the camera
@@ -28,40 +27,29 @@ public class MarchingCubesChunkLoaderCameraScript : MonoBehaviour
         if (canGenerateChunks && Time.frameCount % updateTime == 0)
         {
             chunkCoordinates = terrainScript.TransformCoordinatesWorldToChunk(transform.position + transform.forward * distanceFromCamera);
+            terrainScript.GenerateChunk(transform.position, true, false);//The chunk we are currently on has the highest priority         
             if (oldChunkCoordinates != chunkCoordinates)
             {
-                terrainScript.GenerateChunk(transform.position, true, false);//The chunk we are currently on has the highest priority
-                if (!keepChunksLoaded) 
+                foreach (var chunkLoopVar in loadedChunks)
                 {
-                    foreach (var chunk in loadedChunks) 
-                    {
-                        terrainScript.SetChunkVisibility(chunk.Value, false);
-                    }
-                    loadedChunks.Clear();
+                   terrainScript.SetChunkVisibility(chunkLoopVar.Value, false);
                 }
-
+                loadedChunks.Clear();
+                
                 MarchingCubesTerrainScript.GetChunksInCubeForEach forEachChunk = new MarchingCubesTerrainScript.GetChunksInCubeForEach(ForEachChunk);
-                terrainScript.GetChunksInCube(chunkDistance, chunkCoordinates.x, chunkCoordinates.y, chunkCoordinates.z, forEachChunk);
+                terrainScript.GetChunksInCube(chunkDistance, chunkCoordinates.x, chunkCoordinates.y, chunkCoordinates.z, forEachChunk);            
             }
             oldChunkCoordinates = chunkCoordinates;
+            
         }
     }
     //Delegate function for each chunk in the GetChunksInCube
     public void ForEachChunk(int x, int y, int z, Vector3 worldPosition, MarchingCubesTerrainScript.ChunkData chunk) 
     {
         terrainScript.GenerateChunk(x, y, z, true, false);
-        if (!keepChunksLoaded) terrainScript.SetChunkVisibility(x, y, z, true);
-        if (keepChunksLoaded)
-        {
-            if (!loadedChunks.ContainsValue(chunk))
-            {
-                loadedChunks.Add(loadedChunks.Count, chunk);
-            }
-        }
-        else
-        {
-            loadedChunks.Add(loadedChunks.Count, chunk);
-        }
+        terrainScript.SetChunkVisibility(x, y, z, true);
+        MarchingCubesTerrainScript.ChunkData _chunk = terrainScript.GetChunk(x, y, z);
+        loadedChunks.Add(loadedChunks.Count, _chunk);
     }
     private void OnDrawGizmos()
     {

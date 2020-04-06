@@ -4,7 +4,7 @@ using UnityEngine;
 [RequireComponent(typeof (MeshFilter))]
 [RequireComponent(typeof (MeshRenderer))]
 [RequireComponent(typeof (MeshCollider))]
-
+[System.Serializable]
 public class MarchingCubesChunk : MonoBehaviour
 {
     private MeshRenderer chunkRenderer;
