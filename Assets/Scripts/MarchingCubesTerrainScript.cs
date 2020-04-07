@@ -3,8 +3,9 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 using System.Threading;
+#if UNITY_EDITOR
 using UnityEditor.SceneManagement;
-using Unity;
+#endif
 //Marching cubes terrain script
 public class MarchingCubesTerrainScript : MonoBehaviour
 {
@@ -546,6 +547,7 @@ public class MarchingCubesTerrainScript : MonoBehaviour
     //Generates all the chunks of the terrain
     public void GenerateChunks(bool multithreaded, bool update, bool inEditor)
     {
+        if (inEditor && chunks == null) chunks = new ChunkData[worldSize.x, worldSize.y, worldSize.z];
         if (chunks.GetLength(0) != worldSize.x || chunks.GetLength(1) != worldSize.y || chunks.GetLength(2) != worldSize.z) chunks = new ChunkData[worldSize.x, worldSize.y, worldSize.z];
         if (inEditor) chunks[0, 0, 0].chunkScript = GetComponent<MarchingCubesChunk>();
 
@@ -564,8 +566,10 @@ public class MarchingCubesTerrainScript : MonoBehaviour
     //Generate a single chunk
     public void GenerateChunk(int x, int y, int z, bool multithreaded, bool update)
     {
+        if (x < 0 || y < 0 || z < 0) return;
+        if (x >= worldSize.x || y >= worldSize.y || z >= worldSize.z) return;
         Vector3 chunkPos = TransformCoordinatesChunkToWorld(x, y, z);
-        ChunkData chunk = GetChunk(x, y, z);
+        ChunkData chunk = chunks[x, y, z];
         if (chunk.chunkScript == null)//Generate new chunks if they dont exist yet
         {
             GameObject chunkGameObject;
@@ -587,11 +591,13 @@ public class MarchingCubesTerrainScript : MonoBehaviour
             }
             else
             {
-                if (densityCalculator.Density(chunkPos) < chunkThreshold) return;//This chunk is not filled with terrai
+                chunk.chunkScript = chunkScript;
+                if (densityCalculator.Density(chunkPos) < chunkThreshold) return;//This chunk is not filled with terrain
                 if (generateChunks)
                 {
                     ThreadPool.QueueUserWorkItem(state => GenerateMeshDataThread(chunkPos, chunkScript, marchedCube, x, y, z));
                 }
+                chunks[x, y, z] = chunk;
 
             }
         }
@@ -694,11 +700,10 @@ public class MarchingCubesTerrainScript : MonoBehaviour
     //Delegate to be called back whenever the last loop in GetChunksInCube has run
     public delegate void GetChunksInCubeForEach(int x, int y, int z, Vector3 worldPosition, ChunkData chunk);
     //Get chunks in a cube from chunk data
-    public List<ChunkData> GetChunksInCube(int cubeSize, int xs, int ys, int zs, GetChunksInCubeForEach delegateFunction) 
+    public void GetChunksInCube(int cubeSize, int xs, int ys, int zs, GetChunksInCubeForEach delegateFunction) 
     {
         if (chunks == null || chunks.GetLength(0) != worldSize.x || chunks.GetLength(1) != worldSize.y || chunks.GetLength(2) != worldSize.z) chunks = new ChunkData[worldSize.x, worldSize.y, worldSize.z];
         int xc, yc, zc;//Position of the current chunk
-        List<ChunkData> outChunks = new List<ChunkData>();
         ChunkData chunk;//The current chunk that we are on
         for (int x = -cubeSize; x < cubeSize; x++)
         {
@@ -710,23 +715,21 @@ public class MarchingCubesTerrainScript : MonoBehaviour
                     yc = y + ys;
                     zc = z + zs;
                     chunk = GetChunk(xc, yc, zc);
-                    if(chunk.chunkScript != null) outChunks.Add(chunk);//Even if we have a delegate function, having a return type for a list is not a bad thing
-                    delegateFunction(xc, yc, zc, TransformCoordinatesChunkToWorld(xc, yc, zc), chunk);//Call delegate function
+                     delegateFunction(xc, yc, zc, TransformCoordinatesChunkToWorld(xc, yc, zc), chunk);//Call delegate function
                 }
             }
         }
-        return outChunks;
     }
     //Gets chunks in a cube from world space data (1/2)
-    public List<ChunkData> GetChunksInCube(int cubeSize, Vector3 pos, GetChunksInCubeForEach delegateFunction) 
+    public void GetChunksInCube(int cubeSize, Vector3 pos, GetChunksInCubeForEach delegateFunction) 
     {
         Vector3Int chunkPos = TransformCoordinatesWorldToChunk(pos);
-        return GetChunksInCube(cubeSize, chunkPos.x, chunkPos.y, chunkPos.z, delegateFunction);
+        GetChunksInCube(cubeSize, chunkPos.x, chunkPos.y, chunkPos.z, delegateFunction);
     }
     //Gets chunks in a cube from world space data (2/2) Adds the offset to the final cube size
-    public List<ChunkData> GetChunksInCube(float _cubeSize, int offset, Vector3 pos, GetChunksInCubeForEach delegateFunction) 
+    public void GetChunksInCube(float _cubeSize, int offset, Vector3 pos, GetChunksInCubeForEach delegateFunction) 
     {
-        return GetChunksInCube(Mathf.Max(Mathf.RoundToInt(_cubeSize / size / cubeSize), 1) + offset, pos, delegateFunction);
+        GetChunksInCube(Mathf.Max(Mathf.RoundToInt(_cubeSize / size / cubeSize), 1) + offset, pos, delegateFunction);
     }
     #endregion
     #endregion
@@ -840,8 +843,9 @@ public class MarchingCubesTerrainScript : MonoBehaviour
     {
         if (chunks.GetLength(0) != worldSize.x || chunks.GetLength(1) != worldSize.y || chunks.GetLength(2) != worldSize.z) Debug.LogError("Outdated chunk array");
         Debug.Log("Saving chunks data...");
-        EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
-
+        #if UNITY_EDITOR
+            EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
+        #endif
         SavedChunkData[] outputArray = new SavedChunkData[worldSize.x * worldSize.y * worldSize.z];
         int i = 0;//Index of chunk in flattened array
         SavedChunkData currentChunkData = new SavedChunkData();
