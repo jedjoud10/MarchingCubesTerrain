@@ -19,7 +19,8 @@ public class MarchingCubesEditor : MonoBehaviour
     [SerializeField]
     public enum MarchingCubesEditorBrushType 
     {
-        SPHERE
+        SPHERE,
+        CUBE
     }
     // Start is called before the first frame updateasdfadf
     void Start()
@@ -49,6 +50,19 @@ public class MarchingCubesEditor : MonoBehaviour
     public void ForEachChunk(int x, int y, int z, Vector3 worldPosition, MarchingCubesTerrainScript.ChunkData chunk) 
     {
         if (!addDensity) return;
-        if(brushType == MarchingCubesEditorBrushType.SPHERE) terrainScript.EditChunkDensitiesSphereBrush(x, y, z, hitPoint, brushSize, brushStrengh * (invertBrush ? -1 : 1));//Paint densities using the sphere brush
+        switch (brushType) 
+        {
+            case MarchingCubesEditorBrushType.SPHERE:
+            {
+                    terrainScript.EditChunkDensitiesSphereBrush(x, y, z, hitPoint, brushSize, brushStrengh * (invertBrush ? -1 : 1));//Paint densities using the sphere brush
+                    break;
+            }
+            case MarchingCubesEditorBrushType.CUBE:
+            {
+                    terrainScript.EditChunkDensitiesCubeBrush(x, y, z, hitPoint, brushSize, brushStrengh * (invertBrush ? -1 : 1));//Paint densities using the cube brush
+                    break;
+            }
+            default: break;
+        }
     }
 }
