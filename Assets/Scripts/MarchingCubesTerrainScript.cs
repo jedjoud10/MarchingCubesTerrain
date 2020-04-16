@@ -31,6 +31,7 @@ public class MarchingCubesTerrainScript : MonoBehaviour
     public bool generateCollisions;//Applies the new MarchedCube mesh to the collision for the chunk
     public bool visibiltyAtStart;//The visibility of the chunks at the start of the game
     public bool useDensities;//Should we save the densities and reuse them ?
+    public bool loadAtStart;//Load edited chunks at the start of the game
     public int size;//Size container for each chunk of the marched cube
     public Vector3Int worldSize;//How much chunks we have in the world
     public Material material;
@@ -309,19 +310,27 @@ public class MarchingCubesTerrainScript : MonoBehaviour
         Destroy(GetComponent<MeshFilter>());
         Destroy(GetComponent<MeshRenderer>());
 
-
-        chunks = new ChunkData[worldSize.x, worldSize.y, worldSize.z];//New chunks
         queuedMeshDataChunks = new List<QueuedChunkMeshData>();
-        for (int x = 0; x < worldSize.x; x++)
+        if (loadAtStart)
         {
-            for (int y = 0; y < worldSize.y; y++)
+            LoadChunksData();
+            ReassignChunkScriptsChunks();
+            SetChunksVisibility(visibiltyAtStart);
+        }
+        else
+        {
+            chunks = new ChunkData[worldSize.x, worldSize.y, worldSize.z];//New chunks            
+            for (int x = 0; x < worldSize.x; x++)
             {
-                for (int z = 0; z < worldSize.z; z++)
+                for (int y = 0; y < worldSize.y; y++)
                 {
-                    chunks[x, y, z].chunkScript = null;
+                    for (int z = 0; z < worldSize.z; z++)
+                    {
+                        chunks[x, y, z].chunkScript = null;
+                    }
                 }
-            }
-        }//Init chunk scripts
+            }//Init chunk scripts
+        }
         foreach (var cameras in GameObject.FindObjectsOfType<MarchingCubesChunkLoaderCameraScript>())
         {
             cameras.canGenerateChunks = true;
@@ -629,6 +638,31 @@ public class MarchingCubesTerrainScript : MonoBehaviour
         Vector3Int chunkCoords = TransformCoordinatesWorldToChunk(pos);
         GenerateChunk(chunkCoords.x, chunkCoords.y, chunkCoords.z, multithreaded, update);
     }
+    //Reassings chunk scripts for loaded chunks because they get lost when serializing the data
+    public void ReassignChunkScriptsChunks() 
+    {
+        //if (transform.childCount != worldSize.x * worldSize.y * worldSize.z) return;//Uh oh, stinkyyy
+
+        GameObject chunkGameObject;//The current chunk's gameobject
+        ChunkData currentChunk;//The current chunk data in chunks datas
+        for (int x = 0, i = 0; x < worldSize.x; x++)
+        {
+            for (int y = 0; y < worldSize.y; y++)
+            {
+                for (int z = 0; z < worldSize.z; z++, i++)
+                {
+                    if (i != (worldSize.x * worldSize.y * worldSize.z)-1)
+                    {
+                        chunkGameObject = transform.GetChild(i).gameObject;
+                        currentChunk = chunks[x, y, z];
+                        currentChunk.chunkScript = chunkGameObject.GetComponent<MarchingCubesChunk>();
+                        currentChunk.chunkScript.StartChunk(this, x, y, z);
+                        chunks[x, y, z] = currentChunk;
+                    }
+                }
+            }
+        }
+    }
     #region Coordinates
     //Transform chunk coordinates into world coordinates
     public Vector3 TransformCoordinatesChunkToWorld(int x, int y, int z)
@@ -688,9 +722,7 @@ public class MarchingCubesTerrainScript : MonoBehaviour
         Vector3Int newpos = TransformCoordinatesWorldToChunk(pos);
         int x, y, z;
         x = newpos.x; y = newpos.y; z = newpos.z;
-        if (x < 0 || y < 0 || z < 0) return new ChunkData();
-        if (x >= worldSize.x || y >= worldSize.y || z >= worldSize.z) return new ChunkData();
-        return chunks[x, y, z];
+        return GetChunk(x, y, z);
     }
     //Get chunk (Returns null if chunk is outside map bounds)
     public ChunkData GetChunk(int x, int y, int z)
@@ -911,7 +943,6 @@ public class MarchingCubesTerrainScript : MonoBehaviour
         {
             currentChunkData.x = chunk.x; currentChunkData.y = chunk.y; currentChunkData.z = chunk.z;
             cube = chunk.cube;
-
             currentChunkData.densities = ConvertDensitiesArrayToSingle(cube.densities);
             currentChunkData.chunkScript = chunk.chunkScript;
             currentChunkData.cubeSize = cube.cubeSize;
@@ -937,6 +968,7 @@ public class MarchingCubesTerrainScript : MonoBehaviour
         }
         else
         {
+            Debug.Log("Loading chunks...");
             ChunkData[,,] outputArray = new ChunkData[worldSize.x, worldSize.y, worldSize.z];
             SavedChunkData currentChunkData;
             ChunkData currentChunk = new ChunkData();
@@ -956,7 +988,7 @@ public class MarchingCubesTerrainScript : MonoBehaviour
                 outputArray[currentChunkData.x, currentChunkData.y, currentChunkData.z] = currentChunk;//Converto hah
                 currentChunk.chunkScript.UpdateMesh(GenerateMeshFromData(MarchCube(currentChunk.cube.chunkPosition, currentChunk.cube)), generateCollisions);
             }
-            chunks = outputArray;
+            chunks = outputArray;            
         }
     }
     //Converts a 3D array into a 1D array. For densities only

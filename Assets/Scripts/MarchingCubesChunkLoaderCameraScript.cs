@@ -16,13 +16,13 @@ public class MarchingCubesChunkLoaderCameraScript : MonoBehaviour
     MarchingCubesTerrainScript.GetChunksInCubeForEach forEachChunk;
     // Start is called before the first frame update
     void Start()
-    {
+    { 
         terrainScript = GameObject.FindObjectOfType<MarchingCubesTerrainScript>();
         loadedChunks = new Dictionary<int, MarchingCubesTerrainScript.ChunkData>();
         distanceFromCamera = terrainScript.TransformCoordinatesChunkToWorld(chunkDistance, 0, 0).x;
         forEachChunk = new MarchingCubesTerrainScript.GetChunksInCubeForEach(ForEachChunk);
 
-        terrainScript.LoadChunksData();
+        
     }
 
     // Update is called once per frame
