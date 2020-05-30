@@ -64,5 +64,6 @@ public class MarchingCubesEditor : MonoBehaviour
             }
             default: break;
         }
+        Debug.DrawRay(worldPosition, Vector3.up / 2);
     }
 }

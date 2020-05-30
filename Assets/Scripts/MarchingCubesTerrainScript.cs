@@ -309,6 +309,7 @@ public class MarchingCubesTerrainScript : MonoBehaviour
         Destroy(GetComponent<MarchingCubesChunk>());
         Destroy(GetComponent<MeshFilter>());
         Destroy(GetComponent<MeshRenderer>());
+        Destroy(GetComponent<MeshCollider>());
 
         queuedMeshDataChunks = new List<QueuedChunkMeshData>();
         if (loadAtStart)
@@ -645,13 +646,19 @@ public class MarchingCubesTerrainScript : MonoBehaviour
 
         GameObject chunkGameObject;//The current chunk's gameobject
         ChunkData currentChunk;//The current chunk data in chunks datas
-        for (int x = 0, i = 0; x < worldSize.x; x++)
+        Debug.Log("Child count :" + transform.childCount);
+        int i = -1;        
+        for (int x = 0; x < worldSize.x; x++)
         {
             for (int y = 0; y < worldSize.y; y++)
             {
-                for (int z = 0; z < worldSize.z; z++, i++)
+                for (int z = 0; z < worldSize.z; z++)
                 {
-                    if (i != (worldSize.x * worldSize.y * worldSize.z)-1)
+                    if(i == -1) 
+                    {
+                        GenerateChunk(0, 0, 0, true, false);
+                    }
+                    if (i != (worldSize.x * worldSize.y * worldSize.z)-2 && i != -1)
                     {
                         chunkGameObject = transform.GetChild(i).gameObject;
                         currentChunk = chunks[x, y, z];
@@ -659,6 +666,7 @@ public class MarchingCubesTerrainScript : MonoBehaviour
                         currentChunk.chunkScript.StartChunk(this, x, y, z);
                         chunks[x, y, z] = currentChunk;
                     }
+                    i++;
                 }
             }
         }
@@ -749,7 +757,7 @@ public class MarchingCubesTerrainScript : MonoBehaviour
                     yc = y + ys;
                     zc = z + zs;
                     chunk = GetChunk(xc, yc, zc);
-                     delegateFunction(xc, yc, zc, TransformCoordinatesChunkToWorld(xc, yc, zc), chunk);//Call delegate function
+                    delegateFunction(xc, yc, zc, TransformCoordinatesChunkToWorld(xc, yc, zc), chunk);//Call delegate function
                 }
             }
         }
